@@ -43,7 +43,7 @@ transformed parameters {
       if (IsFirstTrial[i]) {
         mu[i] = S_response[Task[i], Participant[i]] * Numerosity[i];
       } else {
-        real k2Na2 = Scale_sigma_sqr[Task[i], Participant[i]] * Numerosity[i]^(2 * A[Task[i], Participant[i]]);
+        real k2Na2 = S_sigma_sqr[Task[i], Participant[i]] * Numerosity[i]^(2 * A[Task[i], Participant[i]]);
         real W_response = k2Na2 / (k2Na2 + S_sigma_sqr[Task[i], Participant[i]] * Numerosity[i-1]^(2 * A[Task[i], Participant[i]]) + NR2[i]);
         mu[i] = S_response[Task[i], Participant[i]] * ((1 - W_response) * Numerosity[i] + W_response * Response[i-1]);
       }

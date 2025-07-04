@@ -47,7 +47,7 @@ model {
 
   // 4LENA: could you please check the priors and correct both mu and sigma?
   mu_params[1:2] ~ normal(logit(0.8), 0.5); // S_response
-  mu_params[3:4] ~ normal(logit(0.5), 0.5); // W_log
+  mu_params[3:4] ~ normal(logit(0.5), 1); // W_log
   mu_params[5:6] ~ normal(0, 1);            // A
   mu_params[7:8] ~ normal(0, 1);            // S_sigma
   sigma_params ~ exponential(1);
