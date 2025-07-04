@@ -1,23 +1,23 @@
 // Bayesian integration model
 data {
-  int <lower=1> N;
+  int <lower=1> DataN;
   int <lower=1> TaskN;
   int <lower=1> ParticipantsN;
   int <lower=1> Numerosity_max;
   
-  array[N] int<lower=0, upper=Numerosity_max> Numerosity; // number of dots
-  array[N] real<lower=0, upper=Numerosity_max> Response;
-  array[N] int<lower=0, upper=1> IsFirstTrial;            // 1 - first trial, 0 - all other trials
-  array[N] int<lower=1, upper=TaskN> Task;                // 1 - single, 2 - dual
-  array[N] int<lower=1, upper=ParticipantsN> Participant;
+  array[DataN] int<lower=0, upper=Numerosity_max> Numerosity; // number of dots
+  array[DataN] real<lower=0, upper=Numerosity_max> Response;
+  array[DataN] int<lower=0, upper=1> IsFirstTrial;            // 1 - first trial, 0 - all other trials
+  array[DataN] int<lower=1, upper=TaskN> Task;                // 1 - single, 2 - dual
+  array[DataN] int<lower=1, upper=ParticipantsN> Participant;
 }
 
 transformed data {
   int ParamsN = 3; // 1) S_response (response scaling), 2) A (power law constant), 3) S_sigma (uncertainty scaling)
   
   // precomputed for optimization purposes
-  vector[N] NR2 = rep_vector(0, N);
-  for(i in 1:N){
+  vector[DataN] NR2 = rep_vector(0, DataN);
+  for(i in 1:DataN){
     if (IsFirstTrial[i] == 0) NR2[i] = (Numerosity[i] - Response[i - 1])^2;
   }
 }
@@ -30,8 +30,8 @@ parameters {
 }
 
 transformed parameters {
-  vector[N] mu;
-  vector[N] sigma;
+  vector[DataN] mu;
+  vector[DataN] sigma;
   {
     matrix[ParamsN * TaskN, ParticipantsN] params = rep_matrix(mu_params, ParticipantsN) + diag_pre_multiply(sigma_params, l_rho_params) * z_params;
     matrix[TaskN, ParticipantsN] S_response = inv_logit(block(params, 0 * TaskN + 1, 1, TaskN, ParticipantsN));
@@ -39,7 +39,7 @@ transformed parameters {
     matrix[TaskN, ParticipantsN] S_sigma = exp(block(params, 2 * TaskN + 1, 1, TaskN, ParticipantsN));
     matrix[TaskN, ParticipantsN] S_sigma_sqr = S_sigma.^2;
 
-    for(i in 1:N) {
+    for(i in 1:DataN) {
       if (IsFirstTrial[i]) {
         mu[i] = S_response[Task[i], Participant[i]] * Numerosity[i];
       } else {
@@ -63,6 +63,6 @@ model {
 }
 
 generated quantities {
-  vector[N] log_lik;
-  for(i in 1:N) log_lik[i] = normal_lpdf(Response[i] | mu[i], sigma[i]);
+  vector[DataN] log_lik;
+  for(i in 1:DataN) log_lik[i] = normal_lpdf(Response[i] | mu[i], sigma[i]);
 }
