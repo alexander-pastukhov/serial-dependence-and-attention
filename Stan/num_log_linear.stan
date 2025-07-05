@@ -45,11 +45,11 @@ transformed parameters {
 model {
   Response ~ normal(mu, sigma);
 
-  // 4LENA: could you please check the priors and correct both mu and sigma?
-  mu_params[1:2] ~ normal(logit(0.8), 0.5); // S_response
-  mu_params[3:4] ~ normal(logit(0.5), 1); // W_log
-  mu_params[5:6] ~ normal(0, 1);            // A
-  mu_params[7:8] ~ normal(0, 1);            // S_sigma
+  
+  mu_params[1:2] ~ normal(logit(0.8), 1);     // S_response
+  mu_params[3:4] ~ normal(logit(0.25), 1);    // W_log or (logit(0.5), 1.5)
+  mu_params[5:6] ~ normal(log(0.25), log(2)); // A
+  mu_params[7:8] ~ normal(log(4), log(2));    // S_sigma
   sigma_params ~ exponential(1);
   l_rho_params ~ lkj_corr_cholesky(2);
   to_vector(z_params) ~ normal(0, 1);
