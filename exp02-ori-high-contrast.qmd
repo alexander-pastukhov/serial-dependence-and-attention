@@ -1,5 +1,5 @@
 ---
-title: "Experiment 3: Orientation with lower constrast"
+title: "Experiment 2: Orientation with higher constrast"
 format: html
 ---
 
@@ -20,7 +20,7 @@ library(loo)
 ```{r import data}
 results <-
   # get names for all csv files 
-  fs::dir_ls("Data/exp03-orientation-low-contrast", glob="*.csv") |>
+  fs::dir_ls("Data/exp02-orientation-high-contrast/", glob="*.csv") |>
   
   # load them one at a time specifying the column structure
   purrr::map(~read_csv(., col_types = cols(
@@ -97,9 +97,9 @@ Sampling
 ```{r}
 for(a_model in model_names) {
   cat(a_model, "\n")
-  loo_name <- glue("LOO/loo-exp3-{a_model}.RDS")
-  draws_with_predictions_name <- glue("DrawsWithPredictions/draws-exp3-{a_model}.RDS")
-  draws_name <- glue("Draws/draws-exp3-{a_model}.RDS")
+  loo_name <- glue("LOO/loo-exp2-{a_model}.RDS")
+  draws_with_predictions_name <- glue("DrawsWithPredictions/draws-exp2-{a_model}.RDS")
+  draws_name <- glue("Draws/draws-exp2-{a_model}.RDS")
   
   if (fs::file_exists(loo_name) & fs::file_exists(draws_with_predictions_name) & fs::file_exists(draws_name)) next;
   
@@ -118,7 +118,7 @@ for(a_model in model_names) {
 
 Comparing models via leave-one-out information criterion
 ```{r}
-loos <- purrr::map(model_names, ~readRDS(glue("LOO/loo-exp3-{.}.RDS")))
+loos <- purrr::map(model_names, ~readRDS(glue("LOO/loo-exp2-{.}.RDS")))
 names(loos) <- model_names
 loo::loo_compare(loos)
 loo::loo_model_weights(loos)
