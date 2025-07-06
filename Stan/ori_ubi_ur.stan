@@ -1,3 +1,4 @@
+// Updated Bayesian Integration (ubi) model with Response weight adds up to Unity (ur)
 data {
   int <lower=1> DataN;
   int <lower=1> TaskN;
@@ -28,8 +29,8 @@ transformed parameters {
   vector[DataN] sigma;
   {
     matrix[ParamsN * TaskN, ParticipantsN] params = rep_matrix(mu_params, ParticipantsN) + diag_pre_multiply(sigma_params, l_rho_params) * z_params;
-    matrix[TaskN, ParticipantsN] W_response_max = inv_logit(block(params, 1, 1, TaskN, ParticipantsN));
-    matrix[TaskN, ParticipantsN] Lambda = 2 * exp(block(params, TaskN + 1, 1, TaskN, ParticipantsN)).^2;
+    matrix[TaskN, ParticipantsN] W_response_max = inv_logit(block(params, 0 * TaskN + 1, 1, TaskN, ParticipantsN));
+    matrix[TaskN, ParticipantsN] lambda = 2 * exp(block(params, 1 * TaskN + 1, 1, TaskN, ParticipantsN)).^2;
 
     
     for(i in 1:DataN) {
@@ -38,7 +39,7 @@ transformed parameters {
       if (IsFirstTrial[i]) {
         mu[i] = Ori[i];
       } else {
-        real relevance_reponse = exp(-((Ori[i] - Response[i-1])^2) / Lambda[Task[i], Participant[i]]);
+        real relevance_reponse = exp(-((Ori[i] - Response[i-1])^2) / lambda[Task[i], Participant[i]]);
         real W_response = W_response_max[Task[i], Participant[i]] * relevance_reponse;
         mu[i] = (1 - W_response) * Ori[i] + W_response * Response[i-1];
       }
@@ -50,8 +51,7 @@ model {
  Response ~ normal(mu, sigma);
  
   mu_params[1:2] ~ normal(0, 1);  // wprev
-  mu_params[3:4] ~ normal(log(5), 0.5);  // lambda
-  mu_params[5:6] ~ normal(log(.01), 0.5);  // sigma
+  mu_params[3:4] ~ normal(-0.5, 2);  // lambda
   l_rho_params ~ lkj_corr_cholesky(2);
   sigma_params ~ exponential(1);
   to_vector(z_params) ~ normal(0, 1);
@@ -61,5 +61,5 @@ model {
 
 generated quantities {
   vector[DataN] log_lik;
-  for(i in 1:DataN) log_lik[i] = normal_lpdf(Response[i] | mu[i], sigma);
+  for(i in 1:DataN) log_lik[i] = normal_lpdf(Response[i] | mu[i], sigma[i]);
 }
