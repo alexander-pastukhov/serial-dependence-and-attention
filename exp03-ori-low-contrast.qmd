@@ -20,7 +20,7 @@ library(loo)
 ```{r import data}
 results <-
   # get names for all csv files 
-  fs::dir_ls("Data/exp03-orientation", glob="*.csv") |>
+  fs::dir_ls("Data/exp03-orientation-low-contrast", glob="*.csv") |>
   
   # load them one at a time specifying the column structure
   purrr::map(~read_csv(., col_types = cols(
@@ -80,7 +80,7 @@ stan_data <- list(
   ParticipantsN = nlevels(results$Participant),
 
   Ori = results$Orientation,
-  Response = results$OriReport,
+  Response = results$OriResponse,
   Task = as.integer(results$Task),
   Participant = as.integer(results$Participant),
   IsFirstTrial = results$IsFirstTrial
@@ -98,19 +98,21 @@ names(models) <- model_names
 Sampling
 ```{r}
 for(a_model in model_names) {
-  cat(a_model, "\\n")
+  cat(a_model, "\n")
   loo_name <- glue("LOO/loo-exp3-{a_model}.RDS")
   draws_with_predictions_name <- glue("DrawsWithPredictions/draws-exp3-{a_model}.RDS")
-  draws_name <- ("Draws/draws-exp3-{a_model}.RDS")
+  draws_name <- glue("Draws/draws-exp3-{a_model}.RDS")
+  
+  if (fs::file_exists(loo_name) & fs::file_exists(draws_with_predictions_name) & fs::file_exists(draws_name)) next;
   
   fit <- models[[a_model]]$sample(stan_data, chains = 4, parallel_chains = future::availableCores())
   fit_loo <- fit$loo()
   saveRDS(fit_loo, loo_name) 
   
   draws <- fit$draws(format = "df") |> as_tibble() |> select(-starts_with("log_lik"))
-  saveRDS(draws_with_predictions_name, draws_name)
+  saveRDS(draws, draws_with_predictions_name)
   
-  draws_without_predictions <- draws |> select(starts_with("mu_params", "l_rho_params", "sigma_params", "sigma_params", "z_params", "sigma_task"))
-  saveRDS(draws, draws_name)
+  draws_without_predictions <- draws |> select(starts_with(c("mu_params", "l_rho_params", "sigma_params", "sigma_params", "z_params", "sigma_task")))
+  saveRDS(draws_without_predictions, draws_name)
 }
 ```
