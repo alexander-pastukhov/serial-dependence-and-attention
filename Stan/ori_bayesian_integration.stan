@@ -51,9 +51,8 @@ transformed parameters {
 model {
   Response ~ normal(mu, sigma);
   
-  mu_params[1:2] ~ normal(0, 0.5);  // A
-  mu_params[3:4] ~ normal(0, 0.5);  // K
-  l_rho_params ~ lkj_corr_cholesky(2);
+  mu_params[1:2] ~ normal(log(0.25), log(2)); // A
+  mu_params[3:4] ~ normal(log(4), log(2));    // K
   sigma_params ~ exponential(1);
   to_vector(z_params) ~ normal(0, 1);
   
