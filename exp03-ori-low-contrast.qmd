@@ -1,0 +1,116 @@
+---
+title: "Experiment 3: Orientation with lower constrast"
+format: html
+---
+
+## Libraries and settings required for analysis
+```{r setup}
+library(tidyverse)
+
+library(cmdstanr)
+library(fs)
+library(glue)
+library(kilter) # devtools:install_github("alexander-pastukhov/kilter", dependencies=TRUE)
+library(loo)
+```
+
+
+## Data import
+
+```{r import data}
+results <-
+  # get names for all csv files 
+  fs::dir_ls("Data/exp03-orientation", glob="*.csv") |>
+  
+  # load them one at a time specifying the column structure
+  purrr::map(~read_csv(., col_types = cols(
+    Participant = col_character(),
+    Session = col_character(),
+    Block = col_integer(),
+    Task = col_character(),
+    Order = col_character(),
+    ComplementaryOri = col_logical(),
+    Trial = col_integer(),
+    OnsetDelay = col_double(),
+    Orientation = col_double(),
+    Color = col_character(),
+    ColorIsTarget = col_logical(),
+    ColorResponse = col_character(),
+    ColorRT = col_double(),
+    OrientationResponse = col_double(),
+    OrientationRT = col_double()
+  ))) |>
+  
+  # bind into a single table
+  list_rbind() |>
+  
+  # block 1: single central task practice
+  filter(Block > 1) |>
+
+  # Mark first trial for each participant (no prior history)
+  mutate(IsFirstTrial = Block ==2 & Trial == 1) |>
+
+  # turning selected variables into factors
+  mutate(Task = factor(Task, levels = c("single", "dual")),
+         Order = factor(Order, levels = c("descending", "random", "ascending")),
+         Participant = factor(Participant)) |>
+  
+  # computing whether response on central task was correct
+  mutate(ColorTaskCorrect = (ColorIsTarget & ColorResponse == "target") | (!ColorIsTarget & ColorResponse ==  "distractor")) |>
+  
+  # adjusting for circularity and symmetry of orientation response
+  mutate(Orientation = ifelse(ComplementaryOri, -Orientation, Orientation),
+         OrientationResponse = ifelse(ComplementaryOri, -OrientationResponse, OrientationResponse),
+         DeltaOri = OrientationResponse - Orientation,
+         OriResponse = case_when(DeltaOri > 90 & OrientationResponse > 180  ~ OrientationResponse - 180,
+                                 DeltaOri < 90 & OrientationResponse < -180 ~  OrientationResponse + 180,
+                               TRUE ~ OrientationResponse),
+         ResponseError = OriResponse - Orientation) |>
+  rename(RawOrientationResponse = OrientationResponse)
+```
+
+## Statistical analysis
+
+Preparing data for Stan
+
+```{r}
+stan_data <- list(
+  DataN = nrow(results),
+  TaskN = nlevels(results$Task),
+  ParticipantsN = nlevels(results$Participant),
+
+  Ori = results$Orientation,
+  Response = results$OriReport,
+  Task = as.integer(results$Task),
+  Participant = as.integer(results$Participant),
+  IsFirstTrial = results$IsFirstTrial
+)
+```
+
+Compiling models
+
+```{r}
+model_names <- c("bayesian_integration", "ubi_ur", "ubi_r", "ubi_re")
+models <- map(model_names, ~cmdstan_model(glue("Stan/ori_{.}.stan")))
+names(models) <- model_names
+```
+
+Sampling
+```{r}
+for(a_model in model_names) {
+  cat(a_model, "\\n")
+  loo_name <- glue("LOO/loo-exp3-{a_model}.RDS")
+  draws_with_predictions_name <- glue("DrawsWithPredictions/draws-exp3-{a_model}.RDS")
+  draws_name <- ("Draws/draws-exp3-{a_model}.RDS")
+  
+  fit <- models[[a_model]]$sample(stan_data, chains = 4, parallel_chains = future::availableCores())
+  fit_loo <- fit$loo()
+  saveRDS(fit_loo, loo_name) 
+  
+  draws <- fit$draws(format = "df") |> as_tibble() |> select(-starts_with("log_lik"))
+  saveRDS(draws_with_predictions_name, draws_name)
+  
+  draws_without_predictions <- draws |> select(starts_with("mu_params", "l_rho_params", "sigma_params", "sigma_params", "z_params", "sigma_task"))
+  saveRDS(draws, draws_name)
+}
+```
