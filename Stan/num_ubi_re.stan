@@ -42,8 +42,8 @@ parameters {
 }
 
 transformed parameters {
-  vector[N] mu;
-  vector[N] sigma;
+  vector[DataN] mu;
+  vector[DataN] sigma;
   {
     matrix[ScaleParamsN * TaskN, ParticipantsN] scale_params = rep_matrix(mu_scale_params, ParticipantsN) + diag_pre_multiply(sigma_scale_params, l_rho_scale_params) * z_scale_params;
     matrix[TaskN, ParticipantsN] S_response = inv_logit(block(scale_params, 0 * TaskN + 1, 1, TaskN, ParticipantsN));
@@ -73,10 +73,10 @@ transformed parameters {
         mu[i] = S_response[Task[i], Participant[i]] * Numerosity[i];
       } else {
         real Relevance_response = exp(-((LogNumerosity[i] - LogResponse[i-1])^2) / lambda[Task[i], Participant[i]]);
-        real Relevance_numerosity = exp(-((LogNumerosity[i] - LogNumerosity[i-1]))^2) / lambda[Task[i], Participant[i]]);
+        real Relevance_numerosity = exp(-((LogNumerosity[i] - LogNumerosity[i-1])^2) / lambda[Task[i], Participant[i]]);
         real W_response = W_response_max[Task[i], Participant[i]] * uncertainty * Relevance_response;
         real W_numerosity = W_numerosity_max[Task[i], Participant[i]] * uncertainty * Relevance_numerosity;
-        mu[i] = S_response[Task[i], Participant[i]] * (Numerosity[i] + W_response * (Response[i-1] - Numerosity[i]) + W_numeroisty *  (Numerosity[i-1] - Numerosity[i]));
+        mu[i] = S_response[Task[i], Participant[i]] * (Numerosity[i] + W_response * (Response[i-1] - Numerosity[i]) + W_numerosity *  (Numerosity[i-1] - Numerosity[i]));
       }
       
       sigma[i] = sigma_a[Task[i], Participant[i]] + sigma_b[Task[i], Participant[i]] * uncertainty;

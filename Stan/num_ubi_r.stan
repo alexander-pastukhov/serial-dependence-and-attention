@@ -41,8 +41,8 @@ parameters {
 }
 
 transformed parameters {
-  vector[N] mu;
-  vector[N] sigma;
+  vector[DataN] mu;
+  vector[DataN] sigma;
   {
     matrix[ScaleParamsN * TaskN, ParticipantsN] scale_params = rep_matrix(mu_scale_params, ParticipantsN) + diag_pre_multiply(sigma_scale_params, l_rho_scale_params) * z_scale_params;
     matrix[TaskN, ParticipantsN] S_response = inv_logit(block(scale_params, 0 * TaskN + 1, 1, TaskN, ParticipantsN));
@@ -51,9 +51,9 @@ transformed parameters {
     
     // uncertainty
     matrix[ParamsN * TaskN, ParticipantsN] params = rep_matrix(mu_params, ParticipantsN) + diag_pre_multiply(sigma_params, l_rho_params) * z_params;
-    matrix[TaskN, ParticipantsN] U_max = inv_logit(block(params, 0 * TaskN + 1, 1, TaskN, ParticipantsN);
+    matrix[TaskN, ParticipantsN] U_max = inv_logit(block(params, 0 * TaskN + 1, 1, TaskN, ParticipantsN));
     matrix[TaskN, ParticipantsN] U_kappa = 1 ./ exp(block(params, 1 * TaskN + 1, 1, TaskN, ParticipantsN));
-    matrix[TaskN, ParticipantsN] w_response_max = block(params, 2 * TaskN + 1, 1, TaskN, ParticipantsN);
+    matrix[TaskN, ParticipantsN] W_response_max = block(params, 2 * TaskN + 1, 1, TaskN, ParticipantsN);
     matrix[TaskN, ParticipantsN] lambda = 2 * exp(block(params, 3 * TaskN + 1, 1, TaskN, ParticipantsN)).^2;
     
     // weight for uncertainty normalization (maximum probability density at the mode)
