@@ -1,5 +1,5 @@
 ---
-title: "Experiment 2: Orientation with higher constrast"
+title: "Experiment 1: Numerosity"
 format: html
 ---
 
@@ -14,14 +14,11 @@ library(kilter) # devtools:install_github("alexander-pastukhov/kilter", dependen
 library(loo)
 ```
 
-
-## Data import
-
 ```{r import data}
-results <-
+results <- 
   # get names for all csv files 
-  fs::dir_ls("Data/exp02-orientation-high-contrast/", glob="*.csv") |>
-  
+  fs::dir_ls("Data/exp01-numerosity/", glob="*.csv") |>
+
   # load them one at a time specifying the column structure
   purrr::map(~read_csv(., col_types = cols(
     Participant = col_character(),
@@ -29,45 +26,37 @@ results <-
     Block = col_integer(),
     Task = col_character(),
     Order = col_character(),
-    ComplementaryOri = col_logical(),
     Trial = col_integer(),
     OnsetDelay = col_double(),
-    Orientation = col_double(),
+    Ndots = col_integer(),
     Color = col_character(),
     ColorIsTarget = col_logical(),
     ColorResponse = col_character(),
     ColorRT = col_double(),
-    OrientationResponse = col_double(),
-    OrientationRT = col_double()
+    NumerosityResponse = col_double(),
+    NumerosityRT = col_double()
   ))) |>
   
   # bind into a single table
   list_rbind() |>
   
-  # block 1: single central task practice
-  filter(Block > 1) |>
-
-  # Mark first trial for each participant (no prior history)
-  mutate(IsFirstTrial = Block ==2 & Trial == 1) |>
-
   # turning selected variables into factors
   mutate(Task = factor(Task, levels = c("single", "dual")),
-         Order = factor(Order, levels = c("descending", "random", "ascending")),
+         Order = factor(Order, levels = c("ascending", "random", "descending")),
          Participant = factor(Participant)) |>
   
   # computing whether response on central task was correct
   mutate(ColorTaskCorrect = (ColorIsTarget & ColorResponse == "target") | (!ColorIsTarget & ColorResponse ==  "distractor")) |>
   
-  # adjusting for circularity and symmetry of orientation response
-  mutate(Orientation = ifelse(ComplementaryOri, -Orientation, Orientation),
-         OrientationResponse = ifelse(ComplementaryOri, -OrientationResponse, OrientationResponse),
-         DeltaOri = OrientationResponse - Orientation,
-         OriResponse = case_when(DeltaOri > 90 & OrientationResponse > 180  ~ OrientationResponse - 180,
-                                 DeltaOri < 90 & OrientationResponse < -180 ~  OrientationResponse + 180,
-                               TRUE ~ OrientationResponse),
-         ResponseError = OriResponse - Orientation) |>
-  rename(RawOrientationResponse = OrientationResponse)
+  # convert numerosity response to number scale
+  mutate(PN = NumerosityResponse,
+         NumerosityResponse = NumerosityResponse * 100) |>
+  
+  # block 1: single central task
+  filter(Block > 1) |>
+  mutate(IsFirstTrial = Block == 2 & Trial == 1)
 ```
+
 
 ## Statistical analysis
 
@@ -77,9 +66,10 @@ stan_data <- list(
   DataN = nrow(results),
   TaskN = nlevels(results$Task),
   ParticipantsN = nlevels(results$Participant),
+  Numerosity_max = 100,
 
-  Ori = results$Orientation,
-  Response = results$OriResponse,
+  Numerosity = results$Ndots,
+  Response = results$NumerosityResponse,
   Task = as.integer(results$Task),
   Participant = as.integer(results$Participant),
   IsFirstTrial = results$IsFirstTrial
@@ -88,20 +78,19 @@ stan_data <- list(
 
 Compiling models
 ```{r}
-model_names <- c("bayesian_integration", "ubi_ur", "ubi_r", "ubi_re")
-models <- map(model_names, ~cmdstan_model(glue("Stan/ori_{.}.stan")))
+model_names <- c("log_linear", "bayesian_integration", "ubi_ur", "ubi_r", "ubi_re")
+models <- map(model_names, ~cmdstan_model(glue("Stan/num_{.}.stan")))
 names(models) <- model_names
 ```
-
 Sampling
 ```{r}
-for(a_model in model_names[1]) {
+for(a_model in model_names) {
   cat(a_model, "\n")
-  loo_name <- glue("LOO/loo-exp2-{a_model}.RDS")
-  draws_with_predictions_name <- glue("DrawsWithPredictions/draws-exp2-{a_model}.RDS")
-  draws_name <- glue("Draws/draws-exp2-{a_model}.RDS")
+  loo_name <- glue("LOO/loo-exp1-{a_model}.RDS")
+  draws_with_predictions_name <- glue("DrawsWithPredictions/draws-exp1-{a_model}.RDS")
+  draws_name <- glue("Draws/draws-exp1-{a_model}.RDS")
   
-  # if (fs::file_exists(loo_name) & fs::file_exists(draws_with_predictions_name) & fs::file_exists(draws_name)) next;
+  if (fs::file_exists(loo_name) & fs::file_exists(draws_with_predictions_name) & fs::file_exists(draws_name)) next;
   
   fit <- models[[a_model]]$sample(stan_data, chains = 4, parallel_chains = future::availableCores())
   fit_loo <- fit$loo()
@@ -118,8 +107,9 @@ for(a_model in model_names[1]) {
 
 Comparing models via leave-one-out information criterion
 ```{r}
-loos <- purrr::map(model_names, ~readRDS(glue("LOO/loo-exp2-{.}.RDS")))
+loos <- purrr::map(model_names, ~readRDS(glue("LOO/loo-exp1-{.}.RDS")))
 names(loos) <- model_names
 loo::loo_compare(loos)
 loo::loo_model_weights(loos)
 ```
+
