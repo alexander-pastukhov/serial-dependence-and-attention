@@ -12,6 +12,8 @@ library(fs)
 library(glue)
 library(kilter) # devtools:install_github("alexander-pastukhov/kilter", dependencies=TRUE)
 library(loo)
+
+source("utils.R")
 ```
 
 
@@ -123,3 +125,20 @@ names(loos) <- model_names
 loo::loo_compare(loos)
 loo::loo_model_weights(loos)
 ```
+
+
+## Generating summary for predictions at the group level
+
+Bootstrapping behavioral averages
+```{r}
+bootstrapped_ci <- bootstrap_group_averages("BootstrappedAverages/exp3-absolute.RDS", results, Orientation, OriResponse)
+```
+
+Posterior predictions
+```{r}
+draws <- readRDS("DrawsWithPredictions/draws-exp3-ubi_re.RDS")
+
+mu <- kilter::extract_stan_posterior_matrix(draws, "mu")
+posterior_mu <- posterior_group_averages_from_mu("PosteriorAverages/exp3-absolute-mu.RDS", results, mu, Orientation, OriResponse)
+```
+
