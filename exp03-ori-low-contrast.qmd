@@ -121,9 +121,8 @@ for(a_model in model_names) {
 Comparing models via leave-one-out information criterion
 ```{r}
 loos <- purrr::map(model_names, ~readRDS(glue("LOO/loo-exp3-{.}.RDS")))
-names(loos) <- model_names
-loo::loo_compare(loos)
-loo::loo_model_weights(loos)
+
+summarize_loo_comparisson(model_names, loos)
 ```
 
 
