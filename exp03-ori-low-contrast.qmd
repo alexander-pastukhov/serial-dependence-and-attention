@@ -140,5 +140,7 @@ draws <- readRDS("DrawsWithPredictions/draws-exp3-ubi_re.RDS")
 
 mu <- kilter::extract_stan_posterior_matrix(draws, "mu")
 posterior_mu <- posterior_group_averages_from_mu("PosteriorAverages/exp3-absolute-mu.RDS", results, mu, Orientation, OriResponse)
+
+plot_model_predictions("ubi_re", posterior_mu, bootstrapped_ci, Orientation, Response)
 ```
 

@@ -23,7 +23,7 @@ library(rlang)
 #' compute_average_response(results, Orientation, OriResponse, resample = TRUE)
 #' 
 #' # compute predictions
-#' compute_average_response(results, Orientation, OriResponse, preidictions = as.numeric(posterior_mu[1, ]))
+#' compute_average_response(results, Orientation, OriResponse, predictions = as.numeric(posterior_mu[1, ]))
 compute_average_response <- function(df, stimulus_column, response_column, resample=FALSE, predictions=NULL){
   if (resample) df <- slice_sample(df, prop = 1, replace = TRUE)
   if (!is.null(predictions)) df <- df |> mutate({{ response_column }} := predictions)
@@ -122,3 +122,41 @@ summarize_loo_comparisson <- function(model_names, loos) {
   loo_table
 }
 
+#' Plotting model predictions per task
+#'
+#' @param model String with model name
+#' @param posterior Table of posterior predictions grouped by task and stimulus with average responses, LowerCI and UpperCI 
+#' @param bootstrapped Table bootstrapped behavioral averages grouped by task and stimulus with average responses, LowerCI and UpperCI 
+#'
+#' @returns ggplot: Posterior predictions per task 
+#'
+#' @examples
+#' plot_model_predictions(a_model, posterior_mu, bootstrapped_ci, Orientation, OriResponse)
+plot_model_predictions <- function(model, posterior, bootstrapped, stimulus_column, response_column) {
+  ggplot(data = posterior, aes(x = {{stimulus_column}}, y = {{response_column}}, ymin = LowerCI, ymax = UpperCI, fill = Task)) +
+    geom_abline(aes(intercept = 0, slope = 1), linetype = "longdash", linewidth = 0.7) +
+    geom_ribbon(alpha = 0.7) +
+    geom_line(aes(color = Task)) +
+    geom_point(data = bootstrapped, aes(color = Task)) +
+    geom_pointrange(data = bootstrapped, aes(color = Task)) +
+    labs(title = model)
+}
+
+
+#' Computing relative stimulus and response
+#'
+#' @param df Table with columns Task, Participant, {{stimulus_column}}, and {{response_column}}
+#' @param stimulus_column Name of the stimulus column (e.g., Orientation or Numerosity)
+#' @param response_column Name of the response column (e.g., OriResponse or NumerosityResponse)
+#'
+#' @returns Table with relative stimulus and response
+#'
+#' @examples
+#' add_relative_effect(results, Orientation, OriResponse)
+add_relative_effects <- function(df, stimulus_column, response_column) {
+  df <- 
+    df |> 
+    group_by(Participant) |> 
+    mutate(Rel_Stimulus = {{stimulus_column}} - lag({{stimulus_column}}),
+           Rel_Response = {{response_column}} - lag({{response_column}}))
+}
