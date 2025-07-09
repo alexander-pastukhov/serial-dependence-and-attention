@@ -98,3 +98,27 @@ posterior_group_averages_from_mu <- function(filename, df, mu, stimulus_column, 
   saveRDS(avgs, filename)
   avgs
 }
+
+
+
+#' Comparing models via leave-one-out information criterion
+#'
+#' @param model_names list of model names
+#' @param loos list of loos (for all models)
+#'
+#' @returns Table with columns model, elpd_diff, se_diff, weight (with order based on elpd_diff)
+#'
+#' @examples
+#' summarize_loo_comparisson(model_names, loos)
+summarize_loo_comparisson <- function(model_names, loos) {
+  names(loos) <- model_names
+  
+  loo_table <- as_tibble(loo::loo_compare(loos), rownames = "model") |>
+    dplyr::left_join(as_tibble(loo::loo_model_weights(loos), rownames = "model"), by = "model") |>
+    mutate(elpd_diff = round(elpd_diff, 1),
+           se_diff = round(se_diff, 1),
+           weight = round(x, 3)) |>
+    select(model, elpd_diff, se_diff, weight)
+  loo_table
+}
+
