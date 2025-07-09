@@ -109,8 +109,8 @@ posterior_group_averages_from_mu <- function(filename, df, mu, stimulus_column, 
 #' @returns Table with columns model, elpd_diff, se_diff, weight (with order based on elpd_diff)
 #'
 #' @examples
-#' summarize_loo_comparisson(model_names, loos)
-summarize_loo_comparisson <- function(model_names, loos) {
+#' summarize_loo_comparison(model_names, loos)
+summarize_loo_comparison <- function(model_names, loos) {
   names(loos) <- model_names
   
   loo_table <- as_tibble(loo::loo_compare(loos), rownames = "model") |>
