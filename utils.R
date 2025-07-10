@@ -141,20 +141,31 @@ plot_model_predictions <- function(model, posterior, bootstrapped, stimulus_colu
 }
 
 
-#' Computing relative stimulus and response
+#' Compute average relative response per Task and relative stimulus
 #'
 #' @param df Table with columns Task, Participant, {{stimulus_column}}, and {{response_column}}
 #' @param stimulus_column Name of the stimulus column (e.g., Orientation or Numerosity)
 #' @param response_column Name of the response column (e.g., OriResponse or NumerosityResponse)
+#' @param resample logical, whether to sample data (not compatible with `predictions`)
+#' @param predictions predicted values to replace original responses
 #'
-#' @returns Table with relative stimulus and response
+#' @returns Table with relative stimulus and average response per Task and Rel_Stimulus
 #'
 #' @examples
-#' add_relative_effect(results, Orientation, OriResponse)
-add_relative_effects <- function(df, stimulus_column, response_column) {
+#' # compute relative sample average
+#' compute_average_relative_response(results, Orientation, OriResponse)
+#' 
+#' # compute relative bootstrapped sample
+#' compute_average_relative_response(results, Orientation, OriResponse, resample = TRUE)
+#' 
+#' # compute relative predictions
+#' compute_average_relative_response(results, Orientation, OriResponse, predictions = as.numeric(posterior_mu[1, ]))
+compute_average_relative_response <- function(df, stimulus_column, response_column, resample=FALSE, predictions=NULL) {
+  if (!is.null(predictions)) df <- df |> mutate({{ response_column }} := predictions)
   df <- 
     df |> 
     group_by(Participant) |> 
-    mutate(Rel_Stimulus = {{stimulus_column}} - lag({{stimulus_column}}),
-           Rel_Response = {{response_column}} - lag({{response_column}}))
+    mutate(Rel_Stimulus = lag({{ stimulus_column }}, default = 0)- {{ stimulus_column }},
+           Rel_Response = {{ response_column }} - {{ stimulus_column }})
+  compute_average_response(df, Rel_Stimulus, Rel_Response, resample = resample)
 }
