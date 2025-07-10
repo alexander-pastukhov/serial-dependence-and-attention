@@ -113,10 +113,9 @@ posterior_group_averages_from_mu <- function(filename, df, mu, stimulus_column, 
 summarize_loo_comparison <- function(loos) {
   loo_table <- as_tibble(loo::loo_compare(loos), rownames = "model") |>
     dplyr::left_join(as_tibble(loo::loo_model_weights(loos), rownames = "model"), by = "model") |>
-    mutate(elpd_diff = round(elpd_diff, 1),
-           se_diff = round(se_diff, 1),
+    mutate(ΔELPD = glue("{round(elpd_diff, 1)} ± {round(se_diff, 1)}"),
            weight = round(x, 3)) |>
-    select(model, elpd_diff, se_diff, weight)
+    select(model, ΔELPD, weight)
   loo_table
 }
 
