@@ -138,6 +138,8 @@ plot_model_predictions <- function(model, posterior, bootstrapped, stimulus_colu
     geom_line(aes(color = Task)) +
     geom_point(data = bootstrapped, aes(color = Task)) +
     geom_pointrange(data = bootstrapped, aes(color = Task)) +
+    scale_fill_manual(values = c("single" = "#eb6972", "dual" = "#336a97")) +
+    scale_color_manual(values = c("single" = "#eb6972", "dual" = "#336a97")) +
     labs(title = model) +
     coord_equal()
 }
