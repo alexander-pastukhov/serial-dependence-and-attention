@@ -17,14 +17,14 @@ library(rlang)
 #' @examples
 #' 
 #' # compute sample average
-#' compute_average_response(results, Orientation, OriResponse)
+#' compute_average_absolute_response(results, Orientation, OriResponse)
 #' 
 #' # compute bootstrapped sample
-#' compute_average_response(results, Orientation, OriResponse, resample = TRUE)
+#' compute_average_absolute_response(results, Orientation, OriResponse, resample = TRUE)
 #' 
 #' # compute predictions
-#' compute_average_response(results, Orientation, OriResponse, predictions = as.numeric(posterior_mu[1, ]))
-compute_average_response <- function(df, stimulus_column, response_column, resample=FALSE, predictions=NULL){
+#' compute_average_absolute_response(results, Orientation, OriResponse, predictions = as.numeric(posterior_mu[1, ]))
+compute_average_absolute_response <- function(df, stimulus_column, response_column, resample=FALSE, predictions=NULL){
   if (resample) df <- slice_sample(df, prop = 1, replace = TRUE)
   if (!is.null(predictions)) df <- df |> mutate({{ response_column }} := predictions)
   
@@ -41,6 +41,7 @@ compute_average_response <- function(df, stimulus_column, response_column, resam
 #' @param df Table with columns Task, Participant, {{stimulus_column}}, and {{response_column}}
 #' @param stimulus_column Name of the stimulus column (e.g., Orientation or Numerosity)
 #' @param response_column Name of the response column (e.g., OriResponse or NumerosityResponse)
+#' @param averaging_function Function used for averaging
 #' @param CI confidence interval, defaults to `0.97`
 #' @param R number of samples, defaults to `2000`
 #' @param .progress logical, defaults to `TRUE`
@@ -49,19 +50,20 @@ compute_average_response <- function(df, stimulus_column, response_column, resam
 #'
 #' @examples
 #' bootstrap_group_averages(results, Orientation, OriResponse)
-bootstrap_group_averages <- function(filename, df, stimulus_column, response_column, CI=0.97, R=2000, .progress = TRUE) {
+bootstrap_group_averages <- function(filename, df, stimulus_column, response_column, averaging_function, CI=0.97, R=2000, .progress = TRUE) {
   
   if (fs::file_exists(filename)) return(readRDS(filename))
-  samples <- purrr::map(1:R, ~compute_average_response(df, {{stimulus_column}}, {{response_column}}, resample = TRUE), .progress = .progress)
+  samples <- purrr::map(1:R, ~averaging_function(df, {{stimulus_column}}, {{response_column}}, resample = TRUE), .progress = .progress) |> list_rbind()
   
+  grouping_columns <- setdiff(colnames(samples), "Response")
+
   avgs <-
     samples |>
-    list_rbind() |>
-    group_by(Task, {{stimulus_column}}) |>
+    group_by(across(all_of(grouping_columns))) |>
     summarise(LowerCI = kilter::lower_ci(Response, CI = CI),
               UpperCI = kilter::upper_ci(Response, CI = CI),
               .groups = "drop") |>
-    right_join(compute_average_response(df, {{stimulus_column}}, {{response_column}}), by = c("Task",  as_string(ensym(stimulus_column))))
+    right_join(averaging_function(df, {{stimulus_column}}, {{response_column}}), by = grouping_columns)
   
   saveRDS(avgs, filename)
   avgs
@@ -81,15 +83,16 @@ bootstrap_group_averages <- function(filename, df, stimulus_column, response_col
 #'
 #' @examples
 #' bootstrap_group_averages(results, Orientation, OriResponse)
-posterior_group_averages_from_mu <- function(filename, df, mu, stimulus_column, response_column, CI=0.97, .progress = TRUE) {
+posterior_group_averages_from_mu <- function(filename, df, mu, stimulus_column, response_column, averaging_function, CI=0.97, .progress = TRUE) {
   if (fs::file_exists(filename)) return(readRDS(filename))
   
-  samples <- purrr::map(1:nrow(mu), ~compute_average_response(df, {{stimulus_column}}, {{response_column}}, predictions = mu[., ]), .progress = .progress)
+  samples <- purrr::map(1:nrow(mu), ~averaging_function(df, {{stimulus_column}}, {{response_column}}, predictions = mu[., ]), .progress = .progress) |> list_rbind()
+  
+  grouping_columns <- setdiff(colnames(samples), "Response")
   
   avgs <-
     samples |>
-    list_rbind() |>
-    group_by(Task, {{stimulus_column}}) |>
+    group_by(across(all_of(grouping_columns))) |>
     summarise(LowerCI = kilter::lower_ci(Response, CI = CI),
               UpperCI = kilter::upper_ci(Response, CI = CI),
               Response = mean(Response),
@@ -171,5 +174,5 @@ compute_average_relative_response <- function(df, stimulus_column, response_colu
     
     # drop the first trial, as it has no prior orientation we can compute relative to
     filter(!IsFirstTrial)
-  compute_average_response(df, Rel_Stimulus, Rel_Response, resample = resample)
+  compute_average_absolute_response(df, Rel_Stimulus, Rel_Response, resample = resample)
 }
