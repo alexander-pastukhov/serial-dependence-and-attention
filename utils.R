@@ -113,9 +113,9 @@ posterior_group_averages_from_mu <- function(filename, df, mu, stimulus_column, 
 summarize_loo_comparison <- function(loos) {
   loo_table <- as_tibble(loo::loo_compare(loos), rownames = "model") |>
     dplyr::left_join(as_tibble(loo::loo_model_weights(loos), rownames = "model"), by = "model") |>
-    mutate(ΔELPD = glue("{round(elpd_diff, 1)} ± {round(se_diff, 1)}"),
+    mutate(dELPD = glue("{round(elpd_diff, 1)} ± {round(se_diff, 1)}"),
            weight = round(x, 3)) |>
-    select(model, ΔELPD, weight)
+    select(model, dELPD, weight)
   loo_table
 }
 
@@ -165,7 +165,11 @@ compute_average_relative_response <- function(df, stimulus_column, response_colu
   df <- 
     df |> 
     group_by(Participant) |> 
-    mutate(Rel_Stimulus = lag({{ stimulus_column }}, default = 0)- {{ stimulus_column }},
-           Rel_Response = {{ response_column }} - {{ stimulus_column }})
+    mutate(Rel_Stimulus = lag({{ stimulus_column }}) - {{ stimulus_column }},
+           Rel_Response = {{ response_column }} - {{ stimulus_column }}) |>
+    ungroup() |>
+    
+    # drop the first trial, as it has no prior orientation we can compute relative to
+    filter(!IsFirstTrial)
   compute_average_response(df, Rel_Stimulus, Rel_Response, resample = resample)
 }
