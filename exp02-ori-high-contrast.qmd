@@ -12,6 +12,8 @@ library(fs)
 library(glue)
 library(kilter) # devtools:install_github("alexander-pastukhov/kilter", dependencies=TRUE)
 library(loo)
+
+source("utils.R")
 ```
 
 
@@ -95,13 +97,13 @@ names(models) <- model_names
 
 Sampling
 ```{r}
-for(a_model in model_names[1]) {
+for(a_model in model_names) {
   cat(a_model, "\n")
   loo_name <- glue("LOO/loo-exp2-{a_model}.RDS")
   draws_with_predictions_name <- glue("DrawsWithPredictions/draws-exp2-{a_model}.RDS")
   draws_name <- glue("Draws/draws-exp2-{a_model}.RDS")
   
-  # if (fs::file_exists(loo_name) & fs::file_exists(draws_with_predictions_name) & fs::file_exists(draws_name)) next;
+  if (fs::file_exists(loo_name) & fs::file_exists(draws_with_predictions_name) & fs::file_exists(draws_name)) next;
   
   fit <- models[[a_model]]$sample(stan_data, chains = 4, parallel_chains = future::availableCores())
   fit_loo <- fit$loo()
@@ -121,4 +123,32 @@ Comparing models via leave-one-out information criterion
 loos <- purrr::map(model_names, ~readRDS(glue("LOO/loo-exp2-{.}.RDS")))
 names(loos) <- model_names
 summarize_loo_comparison(loos)
+```
+
+## Generating summary for predictions at the group level for absolute orientation
+
+```{r}
+draws <- readRDS("DrawsWithPredictions/draws-exp2-ubi_re.RDS")
+mu <- kilter::extract_stan_posterior_matrix(draws, "mu")
+```
+
+```{r}
+# Bootstrapping behavioral averages
+bootstrapped_abs <- bootstrap_group_averages("BootstrappedAverages/exp2-absolute.RDS", results, Orientation, OriResponse, compute_average_absolute_response)
+
+# Posterior predictions
+posterior_abs <- posterior_group_averages_from_mu("PosteriorAverages/exp2-absolute.RDS", results, mu, Orientation, OriResponse, compute_average_absolute_response)
+
+plot_model_predictions("ubi_re", posterior_abs, bootstrapped_abs, Orientation, Response) +
+  geom_abline(aes(intercept = 0, slope = 1), linetype = "longdash", linewidth = 0.7)
+```
+
+## Generating summary for predictions at the group level for relative orientation
+
+```{r}
+bootstrapped_rel <- bootstrap_group_averages("BootstrappedAverages/exp2-relative.RDS", results, Orientation, OriResponse, compute_average_relative_response)
+posterior_rel <- posterior_group_averages_from_mu("PosteriorAverages/exp2-relative.RDS", results, mu, Orientation, OriResponse, compute_average_relative_response)
+plot_model_predictions("ubi_re", posterior_rel, bootstrapped_rel, Rel_Stimulus, Response) +
+  geom_hline(yintercept = 0, linetype = "dashed", linetype = "longdash", linewidth = 0.7) +
+  geom_vline(xintercept = 0, linetype = "dashed", linetype = "longdash", linewidth = 0.7)
 ```
