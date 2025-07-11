@@ -134,7 +134,6 @@ summarize_loo_comparison <- function(loos) {
 #' plot_model_predictions(a_model, posterior_mu, bootstrapped_ci, Orientation, OriResponse)
 plot_model_predictions <- function(model, posterior, bootstrapped, stimulus_column, response_column) {
   ggplot(data = posterior, aes(x = {{stimulus_column}}, y = {{response_column}}, ymin = LowerCI, ymax = UpperCI, fill = Task)) +
-    geom_abline(aes(intercept = 0, slope = 1), linetype = "longdash", linewidth = 0.7) +
     geom_ribbon(alpha = 0.7) +
     geom_line(aes(color = Task)) +
     geom_point(data = bootstrapped, aes(color = Task)) +
