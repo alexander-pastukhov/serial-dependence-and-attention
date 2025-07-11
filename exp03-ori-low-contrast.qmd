@@ -90,20 +90,20 @@ stan_data <- list(
 
 Compiling models
 ```{r}
-model_names <- c("bayesian_integration", "ubi_ur", "ubi_r", "ubi_re")
+model_names <- c("bayesian_integration", "ubi_ur", "ubi_r", "ubi_re", "ubi_re2")
 models <- map(model_names, ~cmdstan_model(glue("Stan/ori_{.}.stan")))
 names(models) <- model_names
 ```
 
 Sampling
 ```{r}
-for(a_model in model_names) {
+for(a_model in model_names[5]) {
   cat(a_model, "\n")
   loo_name <- glue("LOO/loo-exp3-{a_model}.RDS")
   draws_with_predictions_name <- glue("DrawsWithPredictions/draws-exp3-{a_model}.RDS")
   draws_name <- glue("Draws/draws-exp3-{a_model}.RDS")
   
-  if (fs::file_exists(loo_name) & fs::file_exists(draws_with_predictions_name) & fs::file_exists(draws_name)) next;
+  # if (fs::file_exists(loo_name) & fs::file_exists(draws_with_predictions_name) & fs::file_exists(draws_name)) next;
   
   fit <- models[[a_model]]$sample(stan_data, chains = 4, parallel_chains = future::availableCores())
   fit_loo <- fit$loo()
@@ -126,20 +126,30 @@ summarize_loo_comparison(loos)
 ```
 
 
-## Generating summary for predictions at the group level
+## Generating summary for predictions at the group level for absolute orientation
 
-Bootstrapping behavioral averages
-```{r}
-bootstrapped_ci <- bootstrap_group_averages("BootstrappedAverages/exp3-absolute.RDS", results, Orientation, OriResponse)
-```
-
-Posterior predictions
 ```{r}
 draws <- readRDS("DrawsWithPredictions/draws-exp3-ubi_re.RDS")
-
 mu <- kilter::extract_stan_posterior_matrix(draws, "mu")
-posterior_mu <- posterior_group_averages_from_mu("PosteriorAverages/exp3-absolute-mu.RDS", results, mu, Orientation, OriResponse)
-
-plot_model_predictions("ubi_re", posterior_mu, bootstrapped_ci, Orientation, Response)
 ```
 
+```{r}
+# Bootstrapping behavioral averages
+bootstrapped_abs <- bootstrap_group_averages("BootstrappedAverages/exp3-absolute.RDS", results, Orientation, OriResponse, compute_average_absolute_response)
+
+# Posterior predictions
+posterior_abs <- posterior_group_averages_from_mu("PosteriorAverages/exp3-absolute.RDS", results, mu, Orientation, OriResponse, compute_average_absolute_response)
+
+plot_model_predictions("ubi_re", posterior_abs, bootstrapped_abs, Orientation, Response) +
+  geom_abline(aes(intercept = 0, slope = 1), linetype = "longdash", linewidth = 0.7)
+```
+
+## Generating summary for predictions at the group level for relative orientation
+
+```{r}
+bootstrapped_rel <- bootstrap_group_averages("BootstrappedAverages/exp3-relative.RDS", results, Orientation, OriResponse, compute_average_relative_response)
+posterior_rel <- posterior_group_averages_from_mu("PosteriorAverages/exp3-relative.RDS", results, mu, Orientation, OriResponse, compute_average_relative_response)
+plot_model_predictions("ubi_re", posterior_rel, bootstrapped_rel, Rel_Stimulus, Response) +
+  geom_hline(yintercept = 0, linetype = "dashed", linetype = "longdash", linewidth = 0.7) +
+  geom_vline(xintercept = 0, linetype = "dashed", linetype = "longdash", linewidth = 0.7)
+```
