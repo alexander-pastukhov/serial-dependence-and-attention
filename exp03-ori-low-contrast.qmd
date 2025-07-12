@@ -154,10 +154,28 @@ plot_model_predictions("ubi_re", posterior_rel, bootstrapped_rel, Rel_Stimulus, 
   geom_hline(yintercept = 0, linetype = "dashed", linetype = "longdash", linewidth = 0.7) +
   geom_vline(xintercept = 0, linetype = "dashed", linetype = "longdash", linewidth = 0.7)
 ```
+## Plots for posterior distributions (for weights, prior evidence relevance and uncertainty)
 ```{r}
 lambda <- plot_parameter_distribution(draws, "Prior Relevance", "mu_params[5]", "mu_params[6]")
 w_max_r <- plot_parameter_distribution(draws, "Maximal Response Weight", "mu_params[1]", "mu_params[2]")
 w_max_e <- plot_parameter_distribution(draws, "Maximal Evidence Weight", "mu_params[3]", "mu_params[4]")
 lambda + w_max_r + w_max_e + plot_layout(guides = 'collect', axis_titles = "collect")
 
-sigma_df <- as.data.frame(kilter::extract_stan_posterior_matrix(draws, "sigma"))
+
+
+sigma_df <- as.data.frame(kilter::extract_stan_posterior_matrix(draws, "sigma"))|>
+  mutate(.draw = 1:nrow(draws))
+tasks <- results["Task"] |>
+  mutate(trial = glue("sigma[{1:nrow(results)}]"))
+sigma_long <- sigma_df |>
+  pivot_longer(cols = -".draw",
+               names_to = "trial",
+               values_to = "sigma") |>
+  left_join(tasks, by = "trial") |>
+  group_by(.draw, Task)|>
+  summarise(sigma = mean(sigma), .groups = "drop") |>
+  select(Task, sigma)
+
+plot_parameter_distribution(sigma_long, parameter_name = "sigma", long_df = TRUE)
+
+```
