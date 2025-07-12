@@ -12,6 +12,7 @@ library(fs)
 library(glue)
 library(kilter) # devtools:install_github("alexander-pastukhov/kilter", dependencies=TRUE)
 library(loo)
+library(patchwork)
 
 source("utils.R")
 ```
@@ -142,4 +143,21 @@ posterior_rel <- posterior_group_averages_from_mu("PosteriorAverages/exp1-relati
 plot_model_predictions("ubi_re", posterior_rel, bootstrapped_rel, Rel_Stimulus, Response) +
   geom_hline(yintercept = 0, linetype = "dashed", linetype = "longdash", linewidth = 0.7) +
   geom_vline(xintercept = 0, linetype = "dashed", linetype = "longdash", linewidth = 0.7)
+```
+## Plots for posterior distributions (for weights, prior evidence relevance and uncertainty)
+```{r}
+lambda <- plot_parameter_distribution(draws, "Prior Relevance", "mu_params[9]", "mu_params[10]")
+w_max_r <- plot_parameter_distribution(draws, "Maximal Response Weight", "mu_params[5]", "mu_params[6]")
+w_max_e <- plot_parameter_distribution(draws, "Maximal Evidence Weight", "mu_params[7]", "mu_params[8]")
+lambda + w_max_r + w_max_e + plot_layout(guides = 'collect', axis_titles = "collect")
+
+u_min <- plot_parameter_distribution(draws, "Sigma Min", "mu_scale_params[3]", "mu_scale_params[4]")
+
+sigma_max <- parameter_posterior_df(draws, "mu_scale_params[3]", "mu_scale_params[4]", "sigma_a" )|>
+  mutate(sigma_b = parameter_posterior_df(draws, "mu_scale_params[5]", "mu_scale_params[6]", "sigma_b")[[2]],
+         "Sigma Max" = sigma_a + sigma_b)|>
+  select(Task, "Sigma Max")
+u_max <- plot_parameter_distribution(sigma_max, parameter_name = "Sigma Max", long_df = TRUE)
+
+u_min + u_max + plot_layout(guides = 'collect', axis_titles = "collect")
 ```
