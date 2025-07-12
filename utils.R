@@ -35,6 +35,41 @@ compute_average_absolute_response <- function(df, stimulus_column, response_colu
     summarise(Response = mean(Response), .groups = "drop")
 }
 
+
+#' Compute average relative response per Task and relative stimulus
+#'
+#' @param df Table with columns Task, Participant, {{stimulus_column}}, and {{response_column}}
+#' @param stimulus_column Name of the stimulus column (e.g., Orientation or Numerosity)
+#' @param response_column Name of the response column (e.g., OriResponse or NumerosityResponse)
+#' @param resample logical, whether to sample data (not compatible with `predictions`)
+#' @param predictions predicted values to replace original responses
+#'
+#' @returns Table with relative stimulus and average response per Task and Rel_Stimulus
+#'
+#' @examples
+#' # compute relative sample average
+#' compute_average_relative_response(results, Orientation, OriResponse)
+#' 
+#' # compute relative bootstrapped sample
+#' compute_average_relative_response(results, Orientation, OriResponse, resample = TRUE)
+#' 
+#' # compute relative predictions
+#' compute_average_relative_response(results, Orientation, OriResponse, predictions = as.numeric(posterior_mu[1, ]))
+compute_average_relative_response <- function(df, stimulus_column, response_column, resample=FALSE, predictions=NULL) {
+  if (!is.null(predictions)) df <- df |> mutate({{ response_column }} := predictions)
+  df <- 
+    df |> 
+    group_by(Participant) |> 
+    mutate(Rel_Stimulus = lag({{ stimulus_column }}) - {{ stimulus_column }},
+           Rel_Response = {{ response_column }} - {{ stimulus_column }}) |>
+    ungroup() |>
+    
+    # drop the first trial, as it has no prior orientation we can compute relative to
+    filter(!IsFirstTrial)
+  compute_average_absolute_response(df, Rel_Stimulus, Rel_Response, resample = resample)
+}
+
+
 #' Bootstrap confidence interval and also compute sample average
 #'
 #' @param filename Filename to load from or to save computed results to
@@ -68,6 +103,7 @@ bootstrap_group_averages <- function(filename, df, stimulus_column, response_col
   saveRDS(avgs, filename)
   avgs
 }
+
 
 #' Credible interval from trial-level predictions
 #'
@@ -103,7 +139,6 @@ posterior_group_averages_from_mu <- function(filename, df, mu, stimulus_column, 
 }
 
 
-
 #' Comparing models via leave-one-out information criterion
 #'
 #' @param model_names list of model names
@@ -121,6 +156,7 @@ summarize_loo_comparison <- function(loos) {
     select(model, dELPD, weight)
   loo_table
 }
+
 
 #' Plotting model predictions per task
 #'
@@ -145,35 +181,47 @@ plot_model_predictions <- function(model, posterior, bootstrapped, stimulus_colu
 }
 
 
-#' Compute average relative response per Task and relative stimulus
+#' Extracting a parameter's posterior distribution from draws
 #'
-#' @param df Table with columns Task, Participant, {{stimulus_column}}, and {{response_column}}
-#' @param stimulus_column Name of the stimulus column (e.g., Orientation or Numerosity)
-#' @param response_column Name of the response column (e.g., OriResponse or NumerosityResponse)
-#' @param resample logical, whether to sample data (not compatible with `predictions`)
-#' @param predictions predicted values to replace original responses
+#' @param draws Table with draws of fitted model
+#' @param parameter_single Column name in draws for the parameter (single task) 
+#' @param parameter_dual Column name in draws for the parameter (dual task) 
+#' @param parameter_name Name of parameter for the column in new table
 #'
-#' @returns Table with relative stimulus and average response per Task and Rel_Stimulus
+#' @returns Table with draws for the parameter
 #'
 #' @examples
-#' # compute relative sample average
-#' compute_average_relative_response(results, Orientation, OriResponse)
-#' 
-#' # compute relative bootstrapped sample
-#' compute_average_relative_response(results, Orientation, OriResponse, resample = TRUE)
-#' 
-#' # compute relative predictions
-#' compute_average_relative_response(results, Orientation, OriResponse, predictions = as.numeric(posterior_mu[1, ]))
-compute_average_relative_response <- function(df, stimulus_column, response_column, resample=FALSE, predictions=NULL) {
-  if (!is.null(predictions)) df <- df |> mutate({{ response_column }} := predictions)
-  df <- 
-    df |> 
-    group_by(Participant) |> 
-    mutate(Rel_Stimulus = lag({{ stimulus_column }}) - {{ stimulus_column }},
-           Rel_Response = {{ response_column }} - {{ stimulus_column }}) |>
-    ungroup() |>
-    
-    # drop the first trial, as it has no prior orientation we can compute relative to
-    filter(!IsFirstTrial)
-  compute_average_absolute_response(df, Rel_Stimulus, Rel_Response, resample = resample)
+#' parameter_posterior_df(draws, "mu_scale_params[5]", "mu_scale_params[6]", "Prior Relevance")
+parameter_posterior_df <- function(draws, parameter_single, parameter_dual, parameter_name) {
+  draws[c(parameter_single, parameter_dual)]|>
+    pivot_longer(
+      cols = c(parameter_single, parameter_dual),
+      names_to = "Task",
+      values_to = parameter_name)|>
+    mutate(Task = factor(Task, labels = c("single", "dual")))
 }
+
+#' Plotting parameter posterior distribution
+#'
+#' @param draws Table with draws of fitted model
+#' @param parameter_name Name of parameter for the column in new table
+#' @param parameter_single Column name in draws for the parameter (single task) 
+#' @param parameter_dual Column name in draws for the parameter (dual task) 
+#' @param long_df skips parameter_posterior_df() if already a long df
+#' 
+#' @returns ggplot: Parameter posterior distribution per task 
+#'
+#' @examples
+#' plot_parameter_distribution(draws, "Prior Relevance", "mu_scale_params[5]", "mu_scale_params[6]")
+#' #
+#' plot_parameter_distribution(df, parameter_name = "Sigma Max", long_df = TRUE)
+plot_parameter_distribution <- function(draws, parameter_name, parameter_single = NULL, parameter_dual = NULL, long_df = FALSE) {
+  if (!long_df) df <- parameter_posterior_df(draws, parameter_single, parameter_dual, parameter_name)
+  else df <- draws
+  ggplot(data = df, aes(x =.data[[parameter_name]], fill = Task)) +
+    geom_histogram(aes(y = after_stat(count / sum(count))), bins = 150, alpha = 0.5, position = "identity") +
+    labs(x = parameter_name, y = "PDF") +
+    scale_fill_manual(values = c("single" = "#e6444f", "dual" = "#00457d"))
+}
+
+
