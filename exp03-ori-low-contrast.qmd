@@ -12,6 +12,7 @@ library(fs)
 library(glue)
 library(kilter) # devtools:install_github("alexander-pastukhov/kilter", dependencies=TRUE)
 library(loo)
+library(patchwork)
 
 source("utils.R")
 ```
@@ -153,3 +154,10 @@ plot_model_predictions("ubi_re", posterior_rel, bootstrapped_rel, Rel_Stimulus, 
   geom_hline(yintercept = 0, linetype = "dashed", linetype = "longdash", linewidth = 0.7) +
   geom_vline(xintercept = 0, linetype = "dashed", linetype = "longdash", linewidth = 0.7)
 ```
+```{r}
+lambda <- plot_parameter_distribution(draws, "Prior Relevance", "mu_params[5]", "mu_params[6]")
+w_max_r <- plot_parameter_distribution(draws, "Maximal Response Weight", "mu_params[1]", "mu_params[2]")
+w_max_e <- plot_parameter_distribution(draws, "Maximal Evidence Weight", "mu_params[3]", "mu_params[4]")
+lambda + w_max_r + w_max_e + plot_layout(guides = 'collect', axis_titles = "collect")
+
+sigma_df <- as.data.frame(kilter::extract_stan_posterior_matrix(draws, "sigma"))
