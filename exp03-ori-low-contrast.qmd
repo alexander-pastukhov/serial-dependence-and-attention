@@ -170,26 +170,22 @@ params <- extract_parameters(draws, "mu_params", c("W_response_max", "W_ori_max"
 ```
 
 ```{r}
-lambda <- plot_parameter_distribution(draws, "Prior Relevance", "mu_params[5]", "mu_params[6]")
-w_max_r <- plot_parameter_distribution(draws, "Maximal Response Weight", "mu_params[1]", "mu_params[2]")
-w_max_e <- plot_parameter_distribution(draws, "Maximal Evidence Weight", "mu_params[3]", "mu_params[4]")
-lambda + w_max_r + w_max_e + plot_layout(guides = 'collect', axis_titles = "collect")
+plot_parameter_distribution(draws, "exp03", "Prior Relevance", "mu_params[5]", "mu_params[6]")
+plot_parameter_distribution(draws, "exp03", "Maximal Response Weight", "mu_params[1]", "mu_params[2]")
+plot_parameter_distribution(draws, "exp03", "Maximal Evidence Weight", "mu_params[3]", "mu_params[4]")
 
-
-
-sigma_df <- as.data.frame(kilter::extract_stan_posterior_matrix(draws, "sigma"))|>
-  mutate(.draw = 1:nrow(draws))
 tasks <- results["Task"] |>
   mutate(trial = glue("sigma[{1:nrow(results)}]"))
-sigma_long <- sigma_df |>
+
+sigma_df <- as.data.frame(kilter::extract_stan_posterior_matrix(draws, "sigma"))|>
+  mutate(.draw = 1:nrow(draws))|>
   pivot_longer(cols = -".draw",
                names_to = "trial",
-               values_to = "sigma") |>
+               values_to = "Sigma") |>
   left_join(tasks, by = "trial") |>
   group_by(.draw, Task)|>
-  summarise(sigma = mean(sigma), .groups = "drop") |>
-  select(Task, sigma)
+  summarise(Sigma = mean(Sigma), .groups = "drop")
 
-plot_parameter_distribution(sigma_long, parameter_name = "sigma", long_df = TRUE)
+plot_parameter_distribution(sigma_df, "exp03", parameter_name = "Sigma", long_df = TRUE)
 
 ```

@@ -1,0 +1,42 @@
+---
+title: "Experiment 3: Orientation with lower constrast"
+format: html
+---
+
+## Libraries and settings required for analysis
+```{r setup}
+library(tidyverse)
+
+library(cmdstanr)
+library(fs)
+library(glue)
+library(kilter) # devtools:install_github("alexander-pastukhov/kilter", dependencies=TRUE)
+library(loo)
+library(patchwork)
+
+source("utils.R")
+```
+
+## Plot triptych for each parameter (per experiment)
+```{r}
+plot_triptych <- function(exp, parameter_name){
+  plots <- list()
+  for (a_exp in exp){
+    filename <- glue("ParameterPlots/posterior-distribution-{a_exp}-{parameter_name}.RDS")
+    plots[[a_exp]] <- readRDS(filename)
+  }
+  purrr::reduce(plots, `+`) + plot_layout(guides = 'collect', axis_titles = "collect")
+}
+
+experiments <- c("exp01", "exp02", "exp03")
+
+plot_triptych(experiments, "Maximal Response Weight")
+plot_triptych(experiments, "Maximal Evidence Weight")
+plot_triptych(experiments, "Prior Relevance")
+
+# Uncertainty
+ori_experiments <- c("exp02", "exp03")
+readRDS("ParameterPlots/posterior-distribution-exp01-Sigma Min.RDS") +
+  readRDS("ParameterPlots/posterior-distribution-exp01-Sigma Max.RDS") + 
+  plot_triptych(ori_experiments, "sigma")
+```

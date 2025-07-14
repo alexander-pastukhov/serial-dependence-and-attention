@@ -194,6 +194,7 @@ plot_model_predictions <- function(model, posterior, bootstrapped, stimulus_colu
 #' parameter_posterior_df(draws, "mu_scale_params[5]", "mu_scale_params[6]", "Prior Relevance")
 parameter_posterior_df <- function(draws, parameter_single, parameter_dual, parameter_name) {
   draws[c(parameter_single, parameter_dual)]|>
+    mutate(.draw = 1:nrow(draws))|>
     pivot_longer(
       cols = c(parameter_single, parameter_dual),
       names_to = "Task",
@@ -201,9 +202,31 @@ parameter_posterior_df <- function(draws, parameter_single, parameter_dual, para
     mutate(Task = factor(Task, labels = c("single", "dual")))
 }
 
+
+#' Computes difference per task (mean and CI) and probability for dual > single
+#'
+#' @param parameter_df long table with draws for the parameter
+#' @param parameter_name Name of parameter for the column in new table 
+#' @param CI confidence interval, defaults to `0.97` 
+#'
+#' @returns Table with difference (dual-single) per task (Mean, CI and P(D>S))
+#'
+#' @examples
+#' difference_per_task(parameter_df, parameter_name, CI)
+difference_per_task <- function(parameter_df, parameter_name, CI = 0.97) {
+  parameter_df|>
+    pivot_wider(names_from = "Task", values_from = parameter_name)|>
+    mutate(diff = dual-single)|>
+    summarise(Mean = round(mean(diff),2),
+              CI = glue("[{round(kilter::lower_ci(diff, CI = 0.97),2)}, {round(kilter::upper_ci(diff, CI = 0.97),2)}]"),
+              P = round(mean(dual > single),3))
+}
+
+
 #' Plotting parameter posterior distribution
 #'
 #' @param draws Table with draws of fitted model
+#' @param exp Experiment_id for filename
 #' @param parameter_name Name of parameter for the column in new table
 #' @param parameter_single Column name in draws for the parameter (single task) 
 #' @param parameter_dual Column name in draws for the parameter (dual task) 
@@ -212,16 +235,25 @@ parameter_posterior_df <- function(draws, parameter_single, parameter_dual, para
 #' @returns ggplot: Parameter posterior distribution per task 
 #'
 #' @examples
-#' plot_parameter_distribution(draws, "Prior Relevance", "mu_scale_params[5]", "mu_scale_params[6]")
+#' plot_parameter_distribution(draws, exp01, "Prior Relevance", "mu_scale_params[5]", "mu_scale_params[6]")
 #' #
-#' plot_parameter_distribution(df, parameter_name = "Sigma Max", long_df = TRUE)
-plot_parameter_distribution <- function(draws, parameter_name, parameter_single = NULL, parameter_dual = NULL, long_df = FALSE) {
+#' plot_parameter_distribution(df, exp01, parameter_name = "Sigma Max", long_df = TRUE)
+plot_parameter_distribution <- function(draws, exp, parameter_name, parameter_single = NULL, parameter_dual = NULL, long_df = FALSE) {
   if (!long_df) df <- parameter_posterior_df(draws, parameter_single, parameter_dual, parameter_name)
   else df <- draws
-  ggplot(data = df, aes(x =.data[[parameter_name]], fill = Task)) +
+  
+  diff_df <- difference_per_task(df, parameter_name)
+  if(diff_df[,"Mean"] > 0) sub_title <- glue("D-S = {diff_df[[1, 'Mean']]} {diff_df[[1, 'CI']]} \n P(D>S) = {diff_df[[1, 'P']]*100}%")
+  else  sub_title <- glue("D-S = {diff_df[[1, 'Mean']]} {diff_df[[1, 'CI']]} \n P(D<S) = {100-(diff_df[[1, 'P']]*100)}%")
+  
+  exp_titel <- data.frame(row.names=c("exp01", "exp02", "exp03"), "Name" = c("Exp.1: Numerosity", "Exp.2: Orientation (high contrast)", "Exp.3: Orientation (low contrast)"))
+  
+  plot <- ggplot(data = df, aes(x =.data[[parameter_name]], fill = Task)) +
     geom_histogram(aes(y = after_stat(count / sum(count))), bins = 150, alpha = 0.5, position = "identity") +
-    labs(x = parameter_name, y = "PDF") +
+    labs(x = parameter_name, y = "PDF", title = exp_titel[[exp,1]], subtitle = sub_title) +
     scale_fill_manual(values = c("single" = "#e6444f", "dual" = "#00457d"))
+  
+  saveRDS(plot, file = glue("ParameterPlots/posterior-distribution-{exp}-{parameter_name}.RDS"))
+  plot
 }
-
 

@@ -95,7 +95,7 @@ for(a_model in model_names) {
   draws_with_predictions_name <- glue("DrawsWithPredictions/draws-exp1-{a_model}.RDS")
   draws_name <- glue("Draws/draws-exp1-{a_model}.RDS")
   
-  if (fs::file_exists(loo_name) & fs::file_exists(draws_with_predictions_name) & fs::file_exists(draws_name)) next;
+  #if (fs::file_exists(loo_name) & fs::file_exists(draws_with_predictions_name) & fs::file_exists(draws_name)) next;
   
   fit <- models[[a_model]]$sample(stan_data, chains = 4, parallel_chains = future::availableCores())
   fit_loo <- fit$loo()
@@ -131,7 +131,7 @@ bootstrapped_abs <- bootstrap_group_averages("BootstrappedAverages/exp1-absolute
 # Posterior predictions
 posterior_abs <- posterior_group_averages_from_mu("PosteriorAverages/exp1-absolute.RDS", results, mu, Numerosity, NumerosityResponse, compute_average_absolute_response)
 
-plot_model_predictions("ubi_re", posterior_abs, bootstrapped_abs, Ndots, NumerosityResponse) +
+plot_model_predictions("ubi_re", posterior_abs, bootstrapped_abs, Numerosity, Response) +
   geom_abline(aes(intercept = 0, slope = 1), linetype = "longdash", linewidth = 0.7)
 ```
 
@@ -146,18 +146,16 @@ plot_model_predictions("ubi_re", posterior_rel, bootstrapped_rel, Rel_Stimulus, 
 ```
 ## Plots for posterior distributions (for weights, prior evidence relevance and uncertainty)
 ```{r}
-lambda <- plot_parameter_distribution(draws, "Prior Relevance", "mu_params[9]", "mu_params[10]")
-w_max_r <- plot_parameter_distribution(draws, "Maximal Response Weight", "mu_params[5]", "mu_params[6]")
-w_max_e <- plot_parameter_distribution(draws, "Maximal Evidence Weight", "mu_params[7]", "mu_params[8]")
-lambda + w_max_r + w_max_e + plot_layout(guides = 'collect', axis_titles = "collect")
+plot_parameter_distribution(draws, "exp01", "Prior Relevance", "mu_params[9]", "mu_params[10]")
+plot_parameter_distribution(draws, "exp01", "Maximal Response Weight", "mu_params[5]", "mu_params[6]")
+plot_parameter_distribution(draws, "exp01", "Maximal Evidence Weight", "mu_params[7]", "mu_params[8]")
 
-u_min <- plot_parameter_distribution(draws, "Sigma Min", "mu_scale_params[3]", "mu_scale_params[4]")
+plot_parameter_distribution(draws, "exp01", "Sigma Min", "mu_scale_params[3]", "mu_scale_params[4]")
 
 sigma_max <- parameter_posterior_df(draws, "mu_scale_params[3]", "mu_scale_params[4]", "sigma_a" )|>
-  mutate(sigma_b = parameter_posterior_df(draws, "mu_scale_params[5]", "mu_scale_params[6]", "sigma_b")[[2]],
+  mutate(sigma_b = parameter_posterior_df(draws, "mu_scale_params[5]", "mu_scale_params[6]", "sigma_b")[[3]],
          "Sigma Max" = sigma_a + sigma_b)|>
-  select(Task, "Sigma Max")
-u_max <- plot_parameter_distribution(sigma_max, parameter_name = "Sigma Max", long_df = TRUE)
+  select(.draw, Task, "Sigma Max")
 
-u_min + u_max + plot_layout(guides = 'collect', axis_titles = "collect")
+plot_parameter_distribution(sigma_max, "exp01", parameter_name = "Sigma Max", long_df = TRUE)
 ```
