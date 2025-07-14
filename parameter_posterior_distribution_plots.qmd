@@ -35,8 +35,7 @@ plot_triptych(experiments, "Maximal Evidence Weight")
 plot_triptych(experiments, "Prior Relevance")
 
 # Uncertainty
-ori_experiments <- c("exp02", "exp03")
-readRDS("ParameterPlots/posterior-distribution-exp01-Sigma Min.RDS") +
-  readRDS("ParameterPlots/posterior-distribution-exp01-Sigma Max.RDS") + 
-  plot_triptych(ori_experiments, "sigma")
+(readRDS("ParameterPlots/posterior-distribution-exp01-Sigma Min.RDS") / 
+    (readRDS("ParameterPlots/posterior-distribution-exp01-Sigma Max.RDS"))|
+  readRDS("ParameterPlots/posterior-distribution-exp02-Sigma.RDS")| readRDS("ParameterPlots/posterior-distribution-exp03-Sigma.RDS")) + plot_layout(guides = 'collect', axis_titles = "collect")
 ```
