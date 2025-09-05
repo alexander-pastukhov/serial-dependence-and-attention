@@ -90,7 +90,7 @@ stan_data <- list(
 
 Compiling models
 ```{r}
-model_names <- c("bayesian_integration", "ubi_ur", "ubi_r", "ubi_re")
+model_names <- c("bayesian_integration", "ubi_ur", "ubi_r", "ubi_re", "ubi_re_ct")
 models <- map(model_names, ~cmdstan_model(glue("Stan/ori_{.}.stan")))
 names(models) <- model_names
 ```
@@ -122,13 +122,14 @@ Comparing models via leave-one-out information criterion
 ```{r}
 loos <- purrr::map(model_names, ~readRDS(glue("LOO/loo-exp2-{.}.RDS")))
 names(loos) <- model_names
+saveRDS(summarize_loo_comparison(loos), "LOO/loo-df-exp2.RDS")
 summarize_loo_comparison(loos)
 ```
 
 ## Generating summary for predictions at the group level for absolute orientation
 
 ```{r}
-draws <- readRDS("DrawsWithPredictions/draws-exp2-ubi_re.RDS")
+draws <- readRDS("DrawsWithPredictions/draws-exp2-ubi_re_ct.RDS")
 mu <- kilter::extract_stan_posterior_matrix(draws, "mu")
 ```
 
@@ -139,8 +140,11 @@ bootstrapped_abs <- bootstrap_group_averages("BootstrappedAverages/exp2-absolute
 # Posterior predictions
 posterior_abs <- posterior_group_averages_from_mu("PosteriorAverages/exp2-absolute.RDS", results, mu, Orientation, OriResponse, compute_average_absolute_response)
 
-plot_model_predictions("ubi_re", posterior_abs, bootstrapped_abs, Orientation, Response) +
+plot <- plot_model_predictions("ubi_re", posterior_abs, bootstrapped_abs, Orientation, Response) +
   geom_abline(aes(intercept = 0, slope = 1), linetype = "longdash", linewidth = 0.7)
+saveRDS(plot, file = glue("ParameterPlots/abs-posterior-prediction-exp02-ubi_re_ct.RDS"))
+plot
+ggsave("Figures/posterior-abs-exp02_ubi_re_ct.png", units = "cm", width = 16, height = 10)
 ```
 
 ## Generating summary for predictions at the group level for relative orientation
@@ -148,9 +152,12 @@ plot_model_predictions("ubi_re", posterior_abs, bootstrapped_abs, Orientation, R
 ```{r}
 bootstrapped_rel <- bootstrap_group_averages("BootstrappedAverages/exp2-relative.RDS", results, Orientation, OriResponse, compute_average_relative_response)
 posterior_rel <- posterior_group_averages_from_mu("PosteriorAverages/exp2-relative.RDS", results, mu, Orientation, OriResponse, compute_average_relative_response)
-plot_model_predictions("ubi_re", posterior_rel, bootstrapped_rel, Rel_Stimulus, Response) +
+plot <- plot_model_predictions("ubi_re", posterior_rel, bootstrapped_rel, Rel_Stimulus, Response) +
   geom_hline(yintercept = 0, linetype = "dashed", linetype = "longdash", linewidth = 0.7) +
   geom_vline(xintercept = 0, linetype = "dashed", linetype = "longdash", linewidth = 0.7)
+saveRDS(plot, file = glue("ParameterPlots/rel-posterior-prediction-exp02-ubi_re_ct.RDS"))
+plot
+ggsave("Figures/posterior-rel-exp02_ubi_re_ct.png", units = "cm", width = 16, height = 10)
 ```
 
 ## Plots for posterior distributions (for weights, prior evidence relevance and uncertainty)
@@ -159,6 +166,7 @@ plot_model_predictions("ubi_re", posterior_rel, bootstrapped_rel, Rel_Stimulus, 
 plot_parameter_distribution(draws, "exp02", "Prior Relevance", "mu_params[5]", "mu_params[6]")
 plot_parameter_distribution(draws, "exp02", "Maximal Response Weight", "mu_params[1]", "mu_params[2]")
 plot_parameter_distribution(draws, "exp02", "Maximal Evidence Weight", "mu_params[3]", "mu_params[4]")
+plot_parameter_distribution(draws, "exp02", "Beta Central Tendency", "mu_params[7]", "mu_params[8]")
 
 tasks <- results["Task"] |>
   mutate(trial = glue("sigma[{1:nrow(results)}]"))

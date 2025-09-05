@@ -91,20 +91,20 @@ stan_data <- list(
 
 Compiling models
 ```{r}
-model_names <- c("bayesian_integration", "ubi_ur", "ubi_r", "ubi_re", "ubi_re2")
+model_names <- c("bayesian_integration", "ubi_ur", "ubi_r", "ubi_re","ubi_re_ct")
 models <- map(model_names, ~cmdstan_model(glue("Stan/ori_{.}.stan")))
 names(models) <- model_names
 ```
 
 Sampling
 ```{r}
-for(a_model in model_names[5]) {
+for(a_model in model_names) {
   cat(a_model, "\n")
   loo_name <- glue("LOO/loo-exp3-{a_model}.RDS")
   draws_with_predictions_name <- glue("DrawsWithPredictions/draws-exp3-{a_model}.RDS")
   draws_name <- glue("Draws/draws-exp3-{a_model}.RDS")
   
-  # if (fs::file_exists(loo_name) & fs::file_exists(draws_with_predictions_name) & fs::file_exists(draws_name)) next;
+  if (fs::file_exists(loo_name) & fs::file_exists(draws_with_predictions_name) & fs::file_exists(draws_name)) next;
   
   fit <- models[[a_model]]$sample(stan_data, chains = 4, parallel_chains = future::availableCores())
   fit_loo <- fit$loo()
@@ -124,13 +124,14 @@ Comparing models via leave-one-out information criterion
 loos <- purrr::map(model_names, ~readRDS(glue("LOO/loo-exp3-{.}.RDS")))
 names(loos) <- model_names
 summarize_loo_comparison(loos)
+saveRDS(summarize_loo_comparison(loos), "LOO/loo-df-exp3.RDS")
 ```
 
 
 ## Generating summary for predictions at the group level for absolute orientation
 
 ```{r}
-draws <- readRDS("DrawsWithPredictions/draws-exp3-ubi_re.RDS")
+draws <- readRDS("DrawsWithPredictions/draws-exp3-ubi_re_ct.RDS")
 mu <- kilter::extract_stan_posterior_matrix(draws, "mu")
 ```
 
@@ -141,8 +142,11 @@ bootstrapped_abs <- bootstrap_group_averages("BootstrappedAverages/exp3-absolute
 # Posterior predictions
 posterior_abs <- posterior_group_averages_from_mu("PosteriorAverages/exp3-absolute.RDS", results, mu, Orientation, OriResponse, compute_average_absolute_response)
 
-plot_model_predictions("ubi_re", posterior_abs, bootstrapped_abs, Orientation, Response) +
+plot <- plot_model_predictions("ubi_re", posterior_abs, bootstrapped_abs, Orientation, Response) +
   geom_abline(aes(intercept = 0, slope = 1), linetype = "longdash", linewidth = 0.7)
+saveRDS(plot, file = glue("ParameterPlots/abs-posterior-prediction-exp03-ubi_re_ct.RDS"))
+plot
+ggsave("Figures/posterior-abs-exp03_ubi_re_ct.png", units = "cm", width = 16, height = 10)
 ```
 
 ## Generating summary for predictions at the group level for relative orientation
@@ -150,29 +154,21 @@ plot_model_predictions("ubi_re", posterior_abs, bootstrapped_abs, Orientation, R
 ```{r}
 bootstrapped_rel <- bootstrap_group_averages("BootstrappedAverages/exp3-relative.RDS", results, Orientation, OriResponse, compute_average_relative_response)
 posterior_rel <- posterior_group_averages_from_mu("PosteriorAverages/exp3-relative.RDS", results, mu, Orientation, OriResponse, compute_average_relative_response)
-plot_model_predictions("ubi_re", posterior_rel, bootstrapped_rel, Rel_Stimulus, Response) +
+plot <- plot_model_predictions("ubi_re_ct", posterior_rel, bootstrapped_rel, Rel_Stimulus, Response) +
   geom_hline(yintercept = 0, linetype = "dashed", linetype = "longdash", linewidth = 0.7) +
   geom_vline(xintercept = 0, linetype = "dashed", linetype = "longdash", linewidth = 0.7)
+saveRDS(plot, file = glue("ParameterPlots/rel-posterior-prediction-exp03-ubi_re_ct.RDS"))
+plot
+ggsave("Figures/posterior-rel-exp03_ubi_re_ct.png", units = "cm", width = 16, height = 10)
 ```
 
 ## Plots for posterior distributions (for weights, prior evidence relevance and uncertainty)
-```{r}
-extract_parameters <- function(draws_df, param_variable, param_names) {
-  draws_df |>
-  select(.draw, starts_with(param_variable)) |>
-  pivot_longer(-.draw, names_to = "Term", values_to = "Estimate") |>
-  mutate(iTerm = as.integer(str_extract(Term, "\\d")),
-         Parameter = param_names[ceiling(iTerm / 2)],
-         Task = factor((iTerm + 1) %% 2, labels = levels(results$Task))) |>
-  select(.draw, Task, Parameter, Estimate)
-}
-params <- extract_parameters(draws, "mu_params", c("W_response_max", "W_ori_max", "lambda"))
-```
 
 ```{r}
 plot_parameter_distribution(draws, "exp03", "Prior Relevance", "mu_params[5]", "mu_params[6]")
 plot_parameter_distribution(draws, "exp03", "Maximal Response Weight", "mu_params[1]", "mu_params[2]")
 plot_parameter_distribution(draws, "exp03", "Maximal Evidence Weight", "mu_params[3]", "mu_params[4]")
+plot_parameter_distribution(draws, "exp03", "Beta Central Tendency", "mu_params[7]", "mu_params[8]")
 
 tasks <- results["Task"] |>
   mutate(trial = glue("sigma[{1:nrow(results)}]"))
