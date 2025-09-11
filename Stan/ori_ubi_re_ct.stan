@@ -56,8 +56,8 @@ transformed parameters {
 model {
  Response ~ normal(mu, sigma);
  
-  mu_params[1:4] ~ normal(0, 0.5);     // w_response_max (1:2), w_ori_max (3:4)
-  mu_params[5:6] ~ normal(-0.5, 2);    // lambda
+  mu_params[1:4] ~ normal(0, 0.5);     // W_response_max (1:2), W_ori_max (3:4)
+  mu_params[5:6] ~ normal(-0.5, 0.5);  // lambda
   mu_params[7:8] ~ normal(1, 0.5);     // B_ct
   l_rho_params ~ lkj_corr_cholesky(2);
   sigma_params ~ exponential(1);

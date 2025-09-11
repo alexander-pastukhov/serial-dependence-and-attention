@@ -50,8 +50,8 @@ transformed parameters {
 model {
  Response ~ normal(mu, sigma);
  
-  mu_params[1:2] ~ normal(0, 0.5);     // w_response_max
-  mu_params[3:4] ~ normal(-0.5, 2);    // lambda
+  mu_params[1:2] ~ normal(0, 0.5);    // W_response_max
+  mu_params[3:4] ~ normal(-0.5, 0.5); // lambda
   l_rho_params ~ lkj_corr_cholesky(2);
   sigma_params ~ exponential(1);
   to_vector(z_params) ~ normal(0, 1);

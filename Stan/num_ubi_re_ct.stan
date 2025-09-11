@@ -90,19 +90,19 @@ transformed parameters {
 }
 
 model {
-  mu_scale_params[1:2] ~ normal(1, 0.5);     // B_ct; 
-  mu_scale_params[3:4] ~ normal(0, 0.5);     // sigma_a; 
-  mu_scale_params[5:6] ~ normal(-2.5, 2);    // sigma_b; 
-  mu_scale_params[7:8] ~ normal(0, 1);    // central Numerosity;
+  mu_scale_params[1:2] ~ normal(1, 0.5);    // B_ct; 
+  mu_scale_params[3:4] ~ normal(0, 0.5);    // sigma_a; 
+  mu_scale_params[5:6] ~ normal(-2.5, 2);   // sigma_b; 
+  mu_scale_params[7:8] ~ normal(0, 1);      // central Numerosity;
   l_rho_scale_params ~ lkj_corr_cholesky(2);
   sigma_scale_params ~ exponential(1);
   to_vector(z_scale_params) ~ normal(0, 1);
   
-  mu_params[1:2] ~ normal(0, 1);     // U_max
-  mu_params[3:4] ~ normal(-2.5, 2);  // sigma, so that kappa = 1/sigma;
-  mu_params[5:6] ~ normal(0, 1);     // W_response_max;  
-  mu_params[7:8] ~ normal(0, 1);     // W_numerosity_max;  
-  mu_params[9:10] ~ normal(-0.5, 2); // lambda; 
+  mu_params[1:2] ~ normal(0, 1);       // U_max
+  mu_params[3:4] ~ normal(-2.5, 2);    // sigma, so that kappa = 1/sigma;
+  mu_params[5:6] ~ normal(0, 1);       // W_response_max;  
+  mu_params[7:8] ~ normal(0, 1);       // W_numerosity_max;  
+  mu_params[9:10] ~ normal(-0.5, 0.5); // lambda; 
   l_rho_params ~ lkj_corr_cholesky(2);
   sigma_params ~ exponential(1);
   to_vector(z_params) ~ normal(0, 1);

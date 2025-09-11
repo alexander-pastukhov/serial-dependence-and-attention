@@ -12,11 +12,11 @@ data {
 }
 
 transformed data {
-  int ParamsN = 2; // 1) 1 (power law constant), 2) S_sigma (uncertainty scaling)
+  int ParamsN = 2; // 1) A (power law constant), 2) K (uncertainty scaling)
 }
 
 parameters {
-  vector[ParamsN * TaskN] mu_params; // 1) 1 (power law constant), 2) k (uncertainty scaling)
+  vector[ParamsN * TaskN] mu_params; // 1) A (power law constant), 2) K (uncertainty scaling)
   cholesky_factor_corr[ParamsN * TaskN] l_rho_params;
   vector<lower=0>[ParamsN * TaskN] sigma_params;
   matrix[ParamsN * TaskN, ParticipantsN] z_params;
