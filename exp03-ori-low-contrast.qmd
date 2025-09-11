@@ -142,11 +142,12 @@ bootstrapped_abs <- bootstrap_group_averages("BootstrappedAverages/exp3-absolute
 # Posterior predictions
 posterior_abs <- posterior_group_averages_from_mu("PosteriorAverages/exp3-absolute.RDS", results, mu, Orientation, OriResponse, compute_average_absolute_response)
 
-plot <- plot_model_predictions("ubi_re", posterior_abs, bootstrapped_abs, Orientation, Response) +
+plot <- plot_model_predictions("ubi_re_ct", posterior_abs, bootstrapped_abs, Orientation, Response) +
   geom_abline(aes(intercept = 0, slope = 1), linetype = "longdash", linewidth = 0.7)
 saveRDS(plot, file = glue("ParameterPlots/abs-posterior-prediction-exp03-ubi_re_ct.RDS"))
 plot
 ggsave("Figures/posterior-abs-exp03_ubi_re_ct.png", units = "cm", width = 16, height = 10)
+ggsave("Figures/posterior-abs-exp03_ubi_re_ct.svg", units = "cm", width = 16, height = 10)
 ```
 
 ## Generating summary for predictions at the group level for relative orientation
@@ -160,12 +161,17 @@ plot <- plot_model_predictions("ubi_re_ct", posterior_rel, bootstrapped_rel, Rel
 saveRDS(plot, file = glue("ParameterPlots/rel-posterior-prediction-exp03-ubi_re_ct.RDS"))
 plot
 ggsave("Figures/posterior-rel-exp03_ubi_re_ct.png", units = "cm", width = 16, height = 10)
+ggsave("Figures/posterior-rel-exp03_ubi_re_ct.svg", units = "cm", width = 16, height = 10)
 ```
 
 ## Plots for posterior distributions (for weights, prior evidence relevance and uncertainty)
 
 ```{r}
-plot_parameter_distribution(draws, "exp03", "Prior Relevance", "mu_params[5]", "mu_params[6]")
+prior_relevance <- parameter_posterior_df(draws, "mu_params[5]", "mu_params[6]", "Prior_Relevance")|>
+  mutate("Prior Relevance" = 2 * exp(Prior_Relevance)^2)|> 
+  select(.draw, Task, "Prior Relevance")
+plot_parameter_distribution(prior_relevance, "exp03", parameter_name = "Prior Relevance", long_df = TRUE)
+
 plot_parameter_distribution(draws, "exp03", "Maximal Response Weight", "mu_params[1]", "mu_params[2]")
 plot_parameter_distribution(draws, "exp03", "Maximal Evidence Weight", "mu_params[3]", "mu_params[4]")
 plot_parameter_distribution(draws, "exp03", "Beta Central Tendency", "mu_params[7]", "mu_params[8]")
