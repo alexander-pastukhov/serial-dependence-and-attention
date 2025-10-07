@@ -90,7 +90,7 @@ stan_data <- list(
 
 Compiling models
 ```{r}
-model_names <- c("bayesian_integration", "ubi_ur", "ubi_r", "ubi_re", "ubi_re_ct")
+model_names <- c("bayesian_integration", "ubi_ur", "ubi_r", "ubi_re", "ubi_re_ct", "ubi_re_cte", "ubi_re_ctr")
 models <- map(model_names, ~cmdstan_model(glue("Stan/ori_{.}.stan")))
 names(models) <- model_names
 ```
@@ -103,7 +103,7 @@ for(a_model in model_names) {
   draws_with_predictions_name <- glue("DrawsWithPredictions/draws-exp2-{a_model}.RDS")
   draws_name <- glue("Draws/draws-exp2-{a_model}.RDS")
   
-  if (fs::file_exists(loo_name) & fs::file_exists(draws_with_predictions_name) & fs::file_exists(draws_name)) next;
+  if (fs::file_exists(loo_name) & fs::file_exists(draws_with_predictions_name)) next;
   
   fit <- models[[a_model]]$sample(stan_data, chains = 4, parallel_chains = future::availableCores())
   fit_loo <- fit$loo()
@@ -117,7 +117,6 @@ for(a_model in model_names) {
 }
 ```
 
-
 Comparing models via leave-one-out information criterion
 ```{r}
 loos <- purrr::map(model_names, ~readRDS(glue("LOO/loo-exp2-{.}.RDS")))
@@ -129,7 +128,8 @@ summarize_loo_comparison(loos)
 ## Generating summary for predictions at the group level for absolute orientation
 
 ```{r}
-draws <- readRDS("DrawsWithPredictions/draws-exp2-ubi_re_ct.RDS")
+draws <- readRDS("DrawsWithPredictions/draws-exp2-ubi_re_cte.RDS")
+
 mu <- kilter::extract_stan_posterior_matrix(draws, "mu")
 ```
 
@@ -167,7 +167,9 @@ plot_parameter_distribution(draws, "exp02", "Prior Relevance", "mu_params[5]", "
 plot_parameter_distribution(draws, "exp02", "Maximal Response Weight", "mu_params[1]", "mu_params[2]")
 plot_parameter_distribution(draws, "exp02", "Maximal Evidence Weight", "mu_params[3]", "mu_params[4]")
 plot_parameter_distribution(draws, "exp02", "Beta Central Tendency", "mu_params[7]", "mu_params[8]")
+```
 
+```{r}
 tasks <- results["Task"] |>
   mutate(trial = glue("sigma[{1:nrow(results)}]"))
 
@@ -182,4 +184,28 @@ sigma_df <- as.data.frame(kilter::extract_stan_posterior_matrix(draws, "sigma"))
 
 plot_parameter_distribution(sigma_df, "exp02", parameter_name = "Sigma", long_df = TRUE)
 
+```
+
+
+## Plotting all weights together
+
+```{r}
+params <-
+  draws |>
+  select(.draw, starts_with("mu_params")) |>
+  pivot_longer(starts_with("mu_params"), names_to = "Term", values_to = "mu") |>
+  mutate(Index = as.integer(str_extract(Term, "\\d")),
+         Task = factor((Index + 1) %% 2, labels = levels(results$Task)),
+         Parameter = factor(floor((Index - 1) / 2), labels = c("Wr", "We", "Wct", "lambda"))) |>
+  select(-Term, -Index)
+
+
+params |>
+  filter(Parameter != "lambda") |>
+ggplot(aes(x = Task, y = mu, color = Task, fill = Task)) +
+  geom_boxplot(show.legend = FALSE, outlier.shape = NA, alpha = 0.5) +
+  # ggforce::geom_sina(show.legend = FALSE, alpha = 0.05) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  facet_wrap(. ~ Parameter) +
+  scale_y_continuous(name = "Weight", limits = c(-0.25, 1))
 ```
