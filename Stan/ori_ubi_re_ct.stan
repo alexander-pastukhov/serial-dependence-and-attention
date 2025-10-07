@@ -54,7 +54,7 @@ transformed parameters {
 }
 
 model {
- Response ~ normal(mu, sigma);
+  Response ~ normal(mu, sigma);
  
   mu_params[1:4] ~ normal(0, 0.5);     // w_response_max (1:2), w_ori_max (3:4)
   mu_params[5:6] ~ normal(-0.5, 0.5);    // lambda

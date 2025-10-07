@@ -87,6 +87,7 @@ model_names <- c("log_linear", "bayesian_integration", "ubi_ur", "ubi_r", "ubi_r
 models <- map(model_names, ~cmdstan_model(glue("Stan/num_{.}.stan")))
 names(models) <- model_names
 ```
+
 Sampling
 ```{r}
 for(a_model in model_names) {
@@ -133,12 +134,13 @@ bootstrapped_abs <- bootstrap_group_averages("BootstrappedAverages/exp1-absolute
 # Posterior predictions
 posterior_abs <- posterior_group_averages_from_mu("PosteriorAverages/exp1-absolute.RDS", results, mu, Numerosity, NumerosityResponse, compute_average_absolute_response)
 
-plot <- plot_model_predictions("ubi_re", posterior_abs, bootstrapped_abs, Numerosity, Response) +
+plot <- plot_model_predictions("ubi_re_ct", posterior_abs, bootstrapped_abs, Numerosity, Response) +
   geom_abline(aes(intercept = 0, slope = 1), linetype = "longdash", linewidth = 0.7)
 saveRDS(plot, file = glue("ParameterPlots/abs-posterior-prediction-exp01-ubi_re_ct.RDS"))
 
 plot
 ggsave("Figures/posterior-abs-exp01_ubi_re_ct.png", units = "cm", width = 16, height = 8)
+ggsave("Figures/posterior-abs-exp01_ubi_re_ct.svg", units = "cm", width = 16, height = 8)
 ```
 
 ## Generating summary for predictions at the group level for relative orientation
@@ -146,34 +148,78 @@ ggsave("Figures/posterior-abs-exp01_ubi_re_ct.png", units = "cm", width = 16, he
 ```{r}
 bootstrapped_rel <- bootstrap_group_averages("BootstrappedAverages/exp1-relative.RDS", results, Numerosity, NumerosityResponse, compute_average_relative_response)
 posterior_rel <- posterior_group_averages_from_mu("PosteriorAverages/exp1-relative.RDS", results, mu, Numerosity, NumerosityResponse, compute_average_relative_response)
-plot <- plot_model_predictions("ubi_re", posterior_rel, bootstrapped_rel, Rel_Stimulus, Response) +
+plot <- plot_model_predictions("ubi_re_ct", posterior_rel, bootstrapped_rel, Rel_Stimulus, Response) +
   geom_hline(yintercept = 0, linetype = "dashed", linetype = "longdash", linewidth = 0.7) +
   geom_vline(xintercept = 0, linetype = "dashed", linetype = "longdash", linewidth = 0.7)
 saveRDS(plot, file = glue("ParameterPlots/rel-posterior-prediction-exp01-ubi_re_ct.RDS"))
 plot
 ggsave("Figures/posterior-rel-exp01_ubi_re_ct.png", units = "cm", width = 16, height = 10)
+ggsave("Figures/posterior-rel-exp01_ubi_re_ct.svg", units = "cm", width = 16, height = 10)
 ```
 ## Plots for posterior distributions (for weights, prior evidence relevance and uncertainty)
 ```{r}
-plot_parameter_distribution(draws, "exp01", "Prior Relevance", "mu_params[9]", "mu_params[10]")
+prior_relevance <- parameter_posterior_df(draws, "mu_params[9]", "mu_params[10]", "Prior_Relevance")|>
+  mutate("Prior Relevance" = 2 * exp(Prior_Relevance)^2)|> 
+  select(.draw, Task, "Prior Relevance")
+plot_parameter_distribution(prior_relevance, "exp01", parameter_name = "Prior Relevance", long_df = TRUE)
+
 plot_parameter_distribution(draws, "exp01", "Maximal Response Weight", "mu_params[5]", "mu_params[6]")
 plot_parameter_distribution(draws, "exp01", "Maximal Evidence Weight", "mu_params[7]", "mu_params[8]")
 
 plot_parameter_distribution(draws, "exp01", "Beta Central Tendency", "mu_scale_params[1]", "mu_scale_params[2]")
 
 centralN <- parameter_posterior_df(draws, "mu_scale_params[7]", "mu_scale_params[8]", "Central_Num")|>
-  mutate(Central_Num = 100 * inv_logit(Central_Num))
-plot_parameter_distribution(centralN, "exp01", parameter_name = "Central_Num", long_df = TRUE)
+  mutate("Central Numerosity" = 100 * inv_logit(Central_Num))|> 
+  select(.draw, Task, "Central Numerosity")
+plot_parameter_distribution(centralN, "exp01", parameter_name = "Central Numerosity", long_df = TRUE)
 
-plot_parameter_distribution(draws, "exp01", "Sigma Min", "mu_scale_params[3]", "mu_scale_params[4]")
+sigma_a <- parameter_posterior_df(draws, "mu_scale_params[3]", "mu_scale_params[4]", "Sigma_Min" )|>
+  mutate("Sigma Min" = exp(Sigma_Min))
+plot_parameter_distribution(sigma_a |> select(.draw, Task, "Sigma Min"), "exp01", parameter_name = "Sigma Min", long_df = TRUE)
 
-sigma_max <- parameter_posterior_df(draws, "mu_scale_params[3]", "mu_scale_params[4]", "sigma_a" )|>
+sigma_max <- sigma_a|>
   mutate(sigma_b = parameter_posterior_df(draws, "mu_scale_params[5]", "mu_scale_params[6]", "sigma_b")[[3]],
-         "Sigma Max" = sigma_a + sigma_b)|>
+         "Sigma Max" = exp(Sigma_Min) + exp(sigma_b))|>
   select(.draw, Task, "Sigma Max")
-
 plot_parameter_distribution(sigma_max, "exp01", parameter_name = "Sigma Max", long_df = TRUE)
 ```
+
+
+```{r}
+p_seq <- seq(0.001, 0.999, length.out = 100)
+
+u_params <- parameter_posterior_df(draws, "mu_params[3]", "mu_params[4]", "U_sigma" )|>
+  mutate(U_max = inv_logit(parameter_posterior_df(draws, "mu_params[1]", "mu_params[2]", "U_max" )[[3]]),
+         U_kappa = 1/exp(U_sigma))|>
+  select (.draw, Task, U_max, U_kappa)|>
+  mutate(a = U_max * U_kappa,
+         b = (1 - U_max) * U_kappa,
+         Unorm = dbeta(U_max, a, b))
+
+uncertainty <- u_params |>
+  group_by(.draw, Task) |>
+  group_modify(~tibble(P = p_seq, U = dbeta(p_seq, .x$a[1], .x$b[1]) / .x$Unorm[1]))
+  
+uncertainty_avg <- 
+  uncertainty |>
+  group_by(Task, P) |>
+  summarise(AvgU = mean(U),
+            LowerCI = lower_ci(U),
+            UpperCI = upper_ci(U),
+            .groups = "drop")
+
+ggplot(uncertainty_avg, aes(x = P * 100, y = AvgU, color = Task)) +
+  geom_ribbon(aes(ymin = LowerCI, ymax = UpperCI, fill = Task), color = NA, alpha = 0.5) +
+  geom_line() +
+  scale_x_continuous(name = "Numerosity") +
+  scale_y_continuous(name = "Uncertainty")+
+  scale_fill_manual(values = c("single" = "#eb6972", "dual" = "#336a97")) +
+  scale_color_manual(values = c("single" = "#eb6972", "dual" = "#336a97")) 
+
+ggsave("Figures/uncertainty.png", units = "cm", width = 12, height = 8)
+ggsave("Figures/uncertainty.svg", units = "cm", width = 12, height = 8)
+```
+
 
 ## Plotting all weights together
 
@@ -197,3 +243,4 @@ ggplot(aes(x = Task, y = mu, color = Task, fill = Task)) +
   facet_wrap(. ~ Parameter) +
   scale_y_continuous(name = "Weight", limits = c(-0.25, 1))
 ```
+
