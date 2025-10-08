@@ -91,7 +91,7 @@ stan_data <- list(
 
 Compiling models
 ```{r}
-model_names <- c("bayesian_integration", "ubi_ur", "ubi_r", "ubi_re","ubi_re_ct", "ubi_re_cte", "ubi_re_ctr", "ubi_re_cter")
+model_names <- c("bayesian_integration", "ubi_ur", "ubi_r", "ubi_re","ubi_re_cte")#, "ubi_re_ct", "ubi_re_ctr", "ubi_re_cter")
 models <- map(model_names, ~cmdstan_model(glue("Stan/ori_{.}.stan")))
 names(models) <- model_names
 ```
@@ -137,44 +137,44 @@ mu <- kilter::extract_stan_posterior_matrix(draws, "mu")
 
 ```{r}
 # Bootstrapping behavioral averages
-bootstrapped_abs <- bootstrap_group_averages("BootstrappedAverages/exp3-absolute.RDS", results, Orientation, OriResponse, compute_average_absolute_response)
+bootstrapped_abs <- bootstrap_group_averages("BootstrappedAverages/exp3-absolute-ubi_re_cte.RDS", results, Orientation, OriResponse, compute_average_absolute_response)
 
 # Posterior predictions
-posterior_abs <- posterior_group_averages_from_mu("PosteriorAverages/exp3-absolute-ubi_re_ct.RDS", results, mu, Orientation, OriResponse, compute_average_absolute_response)
+posterior_abs <- posterior_group_averages_from_mu("PosteriorAverages/exp3-absolute-ubi_re_cte.RDS", results, mu, Orientation, OriResponse, compute_average_absolute_response)
 
-plot <- plot_model_predictions("ubi_re_ct", posterior_abs, bootstrapped_abs, Orientation, Response) +
+plot <- plot_model_predictions("ubi_re_cte", posterior_abs, bootstrapped_abs, Orientation, Response) +
   geom_abline(aes(intercept = 0, slope = 1), linetype = "longdash", linewidth = 0.7)
-saveRDS(plot, file = glue("ParameterPlots/abs-posterior-prediction-exp03-ubi_re_ct.RDS"))
+saveRDS(plot, file = glue("ParameterPlots/abs-posterior-prediction-exp03-ubi_re_cte.RDS"))
 plot
-ggsave("Figures/posterior-abs-exp03_ubi_re_ct.png", units = "cm", width = 16, height = 10)
-ggsave("Figures/posterior-abs-exp03_ubi_re_ct.svg", units = "cm", width = 16, height = 10)
+ggsave("Figures/posterior-abs-exp03_ubi_re_cte.png", units = "cm", width = 16, height = 10)
+ggsave("Figures/posterior-abs-exp03_ubi_re_cte.svg", units = "cm", width = 16, height = 10)
 ```
 
 ## Generating summary for predictions at the group level for relative orientation
 
 ```{r}
-bootstrapped_rel <- bootstrap_group_averages("BootstrappedAverages/exp3-relative.RDS", results, Orientation, OriResponse, compute_average_relative_response)
-posterior_rel <- posterior_group_averages_from_mu("PosteriorAverages/exp3-relative--ubi_re_ct.RDS", results, mu, Orientation, OriResponse, compute_average_relative_response)
-plot <- plot_model_predictions("ubi_re_ct", posterior_rel, bootstrapped_rel, Rel_Stimulus, Response) +
+bootstrapped_rel <- bootstrap_group_averages("BootstrappedAverages/exp3-relative-ubi_re_cte.RDS", results, Orientation, OriResponse, compute_average_relative_response)
+posterior_rel <- posterior_group_averages_from_mu("PosteriorAverages/exp3-relative-ubi_re_cte.RDS", results, mu, Orientation, OriResponse, compute_average_relative_response)
+plot <- plot_model_predictions("ubi_re_cte", posterior_rel, bootstrapped_rel, Rel_Stimulus, Response) +
   geom_hline(yintercept = 0, linetype = "dashed", linetype = "longdash", linewidth = 0.7) +
   geom_vline(xintercept = 0, linetype = "dashed", linetype = "longdash", linewidth = 0.7)
-saveRDS(plot, file = glue("ParameterPlots/rel-posterior-prediction-exp03-ubi_re_ct.RDS"))
+saveRDS(plot, file = glue("ParameterPlots/rel-posterior-prediction-exp03-ubi_re_cte.RDS"))
 plot
-ggsave("Figures/posterior-rel-exp03_ubi_re_ct.png", units = "cm", width = 16, height = 10)
-ggsave("Figures/posterior-rel-exp03_ubi_re_ct.svg", units = "cm", width = 16, height = 10)
+ggsave("Figures/posterior-rel-exp03_ubi_re_cte.png", units = "cm", width = 16, height = 10)
+ggsave("Figures/posterior-rel-exp03_ubi_re_cte.svg", units = "cm", width = 16, height = 10)
 ```
 
 ## Plots for posterior distributions (for weights, prior evidence relevance and uncertainty)
 
 ```{r}
-prior_relevance <- parameter_posterior_df(draws, "mu_params[5]", "mu_params[6]", "Prior_Relevance")|>
+prior_relevance <- parameter_posterior_df(draws, "mu_params[7]", "mu_params[8]", "Prior_Relevance")|>
   mutate("Prior Relevance" = 2 * exp(Prior_Relevance)^2)|> 
   select(.draw, Task, "Prior Relevance")
 plot_parameter_distribution(prior_relevance, "exp03", parameter_name = "Prior Relevance", long_df = TRUE)
 
 plot_parameter_distribution(draws, "exp03", "Maximal Response Weight", "mu_params[1]", "mu_params[2]")
 plot_parameter_distribution(draws, "exp03", "Maximal Evidence Weight", "mu_params[3]", "mu_params[4]")
-plot_parameter_distribution(draws, "exp03", "Beta Central Tendency", "mu_params[7]", "mu_params[8]")
+plot_parameter_distribution(draws, "exp03", "Central Tendency Weight", "mu_params[5]", "mu_params[6]")
 ```
 
 ```{r}
@@ -197,7 +197,7 @@ plot_parameter_distribution(sigma_df, "exp03", parameter_name = "Sigma", long_df
 ## Plotting all weights together
 
 ```{r}
-params <-
+params03 <-
   draws |>
   select(.draw, starts_with("mu_params")) |>
   pivot_longer(starts_with("mu_params"), names_to = "Term", values_to = "mu") |>
@@ -207,11 +207,13 @@ params <-
   select(-Term, -Index)
 
 
-params |>
+params03 |>
   filter(Parameter != "lambda") |>
 ggplot(aes(x = Task, y = mu, color = Task, fill = Task)) +
-  geom_boxplot(show.legend = FALSE, outlier.shape = NA, alpha = 0.5) +
-  # ggforce::geom_sina(show.legend = FALSE, alpha = 0.05) +
+  #geom_boxplot(show.legend = FALSE, outlier.shape = NA, alpha = 0.5) +
+  ggforce::geom_sina(show.legend = FALSE, alpha = 0.05) +
+  scale_fill_manual(values = c("single" = "#e6444f", "dual" = "#00457d"))+
+  scale_color_manual(values = c("single" = "#e6444f", "dual" = "#00457d"))+
   geom_hline(yintercept = 0, linetype = "dashed") +
   facet_wrap(. ~ Parameter) +
   scale_y_continuous(name = "Weight", limits = c(-0.25, 1))

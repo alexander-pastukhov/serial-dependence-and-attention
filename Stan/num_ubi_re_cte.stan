@@ -13,12 +13,12 @@ data {
 }
 
 transformed data {
-  int ScaleParamsN = 4; // 1)  U_max (point of maximal uncertainty on 0..1 range), kappa (precision for uncertainty distribution), 2) a_sigma, 3) b_sigma (linear model for sigma from uncertainty)
+  int ScaleParamsN = 4; // 1)  U_max (point of maximal uncertainty on 0..1 range), 2) kappa (precision for uncertainty distribution), 3) a_sigma, 4) b_sigma (linear model for sigma from uncertainty)
   int ParamsN = 4;
   // 1) W_response_max (maximal weight for prior response), 
   // 2) W_numerosity_max (maximal weight for prior numerosity),
-  // 2) W_ct 
-  // 5) lambda (relevance of prior response based on how different it is)
+  // 3) W_ct 
+  // 4) lambda (relevance of prior response based on how different it is)
 
   // optimization
   vector[DataN] LogNumerosity  = log(to_vector(Numerosity));

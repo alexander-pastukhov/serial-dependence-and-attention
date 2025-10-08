@@ -17,25 +17,100 @@ library(patchwork)
 source("utils.R")
 ```
 
+##behavioral results
+### per task
+```{r}
+plot_triptych1 <- function(t, exp, model){
+  plots <- list()
+  for (a_exp in exp){
+    filename <- glue("ParameterPlots/{t}-posterior-prediction-{a_exp}-{model}.RDS")
+    if (t == "abs"){
+      if (a_exp == "exp01"){
+        plots[[a_exp]] <- readRDS(filename)+ylim(2,86)}
+      else{
+        plots[[a_exp]] <- readRDS(filename)+ylim(25,65)}}
+    else{
+      if (a_exp == "exp01"){
+        plots[[a_exp]] <- readRDS(filename)+xlim(-84,84)+ylim(-72,72)}
+      else{
+        plots[[a_exp]] <- readRDS(filename)+xlim(-40,40)+ylim(-35,35)}}
+    }
+  purrr::reduce(plots, `|`) + plot_layout(axis_titles = "collect", guides = 'collect')
+  ggsave(glue("Figures/{t}-{model}.png"), units = "cm", width = 40, height = 13)
+  ggsave(glue("Figures/{t}-{model}.svg"), units = "cm", width = 40, height = 13)
+}
+experiments <- c("exp01", "exp02", "exp03")
+plot_triptych1("abs", experiments, "ubi_re_cte")
+plot_triptych1("rel", experiments, "ubi_re_cte")
+#plot_triptych1("abs", "exp01", "log_linear")
+
+```
+
+
 ## Plot triptych for each parameter (per experiment)
 ```{r}
 plot_triptych <- function(exp, parameter_name){
   plots <- list()
   for (a_exp in exp){
     filename <- glue("ParameterPlots/posterior-distribution-{a_exp}-{parameter_name}.RDS")
-    plots[[a_exp]] <- readRDS(filename)
+    plots[[a_exp]] <- readRDS(filename)#+xlim(0,80)
   }
-  purrr::reduce(plots, `+`) + plot_layout(guides = 'collect', axis_titles = "collect")
+  purrr::reduce(plots, `+`) +
+  #geom_vline(xintercept = 0, linetype = "longdash", linewidth = 0.7) + 
+    plot_layout(guides = 'collect', axis_titles = "collect")
 }
 
 experiments <- c("exp01", "exp02", "exp03")
 
 plot_triptych(experiments, "Maximal Response Weight")
-plot_triptych(experiments, "Maximal Evidence Weight")
-plot_triptych(experiments, "Prior Relevance")
+ggsave("Figures/w_max_r.png", units = "cm", width = 28, height = 7)
+ggsave("Figures/w_max_r.svg", units = "cm", width = 28, height = 7)
 
-# Uncertainty
-(readRDS("ParameterPlots/posterior-distribution-exp01-Sigma Min.RDS") / 
-    (readRDS("ParameterPlots/posterior-distribution-exp01-Sigma Max.RDS"))|
+plot_triptych(experiments, "Maximal Evidence Weight")
+ggsave("Figures/w_max_e.png", units = "cm", width = 28, height = 7)
+ggsave("Figures/w_max_e.svg", units = "cm", width = 28, height = 7)
+
+plot_triptych(experiments, "Central Tendency Weight")
+ggsave("Figures/w_ct.png", units = "cm", width = 28, height = 7)
+ggsave("Figures/w_ct.svg", units = "cm", width = 28, height = 7)
+
+plot_triptych(experiments, "Prior Relevance")
+ggsave("Figures/lambda.png", units = "cm", width = 28, height = 7)
+ggsave("Figures/lambda.svg", units = "cm", width = 28, height = 7)
+
+#plot_triptych(experiments, "Beta Central Tendency")
+#ggsave("Figures/b_ct.png", units = "cm", width = 28, height = 7)
+#ggsave("Figures/b_ct.svg", units = "cm", width = 28, height = 7)
+
+# Sigma
+((readRDS("ParameterPlots/posterior-distribution-exp01-Sigma Max.RDS"))|
   readRDS("ParameterPlots/posterior-distribution-exp02-Sigma.RDS")| readRDS("ParameterPlots/posterior-distribution-exp03-Sigma.RDS")) + plot_layout(guides = 'collect', axis_titles = "collect")
+ggsave("Figures/sigma.png", units = "cm", width = 28, height = 7)
+ggsave("Figures/sigma.svg", units = "cm", width = 28, height = 7)
+
+
+# weights
+p01 <-params01 |>
+  filter(Parameter != "lambda") |>
+  mutate(exp = "Exp.1: Numerosity")
+p02<- params02 |>
+  filter(Parameter != "lambda") |>
+  mutate(exp = "Exp.2: Orientation (high contrast)")
+p03<- params03 |>
+  filter(Parameter != "lambda") |>
+  mutate(exp = "Exp.3: Orientation (low contrast)")
+params <- bind_rows(p01,p02,p03)
+params|>
+ggplot(aes(x = Task, y = mu, color = Task, fill = Task)) +
+  facet_grid(rows = vars(exp), cols = vars(Parameter)) +
+  #geom_boxplot(show.legend = FALSE, outlier.shape = NA, alpha = 0.5) +
+  ggforce::geom_sina(show.legend = FALSE, alpha = 0.05) +
+  scale_fill_manual(values = c("single" = "#eb6972ff", "dual" = "#336a97ff"))+
+  scale_color_manual(values = c("single" = "#eb6972ff", "dual" = "#336a97ff"))+
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  #facet_wrap(. ~ Parameter) +
+  scale_y_continuous(name = "Weight")#, limits = c(-0.25, 1))
+ggsave("Figures/weights.png", units = "cm", width = 17, height = 17)
+ggsave("Figures/weights.svg", units = "cm", width = 17, height = 17)
+```
 ```

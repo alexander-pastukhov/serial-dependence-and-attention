@@ -250,6 +250,8 @@ plot_parameter_distribution <- function(draws, exp, parameter_name, parameter_si
   
   plot <- ggplot(data = df, aes(x =.data[[parameter_name]], fill = Task)) +
     geom_histogram(aes(y = after_stat(count / sum(count))), bins = 150, alpha = 0.5, position = "identity") +
+    geom_vline(xintercept = 0, linetype = "dashed", linewidth = 0.7) +
+    #geom_vline(xintercept = 1, linetype = "dashed", linewidth = 0.7) +
     labs(x = parameter_name, y = "PDF", title = exp_titel[[exp,1]], subtitle = sub_title) +
     scale_fill_manual(values = c("single" = "#e6444f", "dual" = "#00457d"))
   

@@ -13,7 +13,7 @@ data {
 }
 
 transformed data {
-  int ParamsN = 4; // 1) W_response_max, 2) W_ori_max, 3) lambda (relevance), 4) B_ct
+  int ParamsN = 4; // 1) W_response_max, 2) W_ori_max, 3) W_ct, 4) lambda (relevance)
 }
 
 parameters {
