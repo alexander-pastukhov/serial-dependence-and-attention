@@ -90,17 +90,14 @@ ggsave("Figures/sigma.svg", units = "cm", width = 28, height = 7)
 
 
 # weights
-p01 <-params01 |>
-  filter(Parameter != "lambda") |>
+w01 <- readRDS("Weights/weights01.RDS") |>
   mutate(exp = "Exp.1: Numerosity")
-p02<- params02 |>
-  filter(Parameter != "lambda") |>
+w02 <- readRDS("Weights/weights02.RDS") |>
   mutate(exp = "Exp.2: Orientation (high contrast)")
-p03<- params03 |>
-  filter(Parameter != "lambda") |>
+w03 <- readRDS("Weights/weights03.RDS") |>
   mutate(exp = "Exp.3: Orientation (low contrast)")
-params <- bind_rows(p01,p02,p03)
-params|>
+weights <- bind_rows(p01,p02,p03)
+weights|>
 ggplot(aes(x = Task, y = mu, color = Task, fill = Task)) +
   facet_grid(rows = vars(exp), cols = vars(Parameter)) +
   #geom_boxplot(show.legend = FALSE, outlier.shape = NA, alpha = 0.5) +
@@ -112,5 +109,4 @@ ggplot(aes(x = Task, y = mu, color = Task, fill = Task)) +
   scale_y_continuous(name = "Weight")#, limits = c(-0.25, 1))
 ggsave("Figures/weights.png", units = "cm", width = 17, height = 17)
 ggsave("Figures/weights.svg", units = "cm", width = 17, height = 17)
-```
 ```

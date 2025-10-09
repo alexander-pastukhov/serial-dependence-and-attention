@@ -1,0 +1,56 @@
+---
+title: "weights-table"
+format: docx
+---
+## Libraries and settings required for analysis
+```{r setup}
+library(tidyverse)
+library(dplyr)
+library(glue)
+```
+
+## Weight tables
+```{r}
+w01 <- readRDS("weights01.RDS") |>
+  mutate(exp = "Exp.1: Numerosity")
+w02 <- readRDS("weights02.RDS") |>
+  mutate(exp = "Exp.2: Orientation (high contrast)")
+w03 <- readRDS("weights03.RDS") |>
+  mutate(exp = "Exp.3: Orientation (low contrast)")
+weights <- bind_rows(w01,w02,w03)
+
+weights_df <-
+  weights|>
+  group_by(exp, Parameter, Task)|>
+  summarise(Mean = round(mean(mu),2),
+            CI = glue("[{round(kilter::lower_ci(mu, CI = 0.97),2)}, {round(kilter::upper_ci(mu, CI = 0.97),2)}]"),
+            SD = round(sd(mu),2),
+            #Mean_CI = glue("{Mean} {CI}"),
+            Mean_SD = glue("{Mean} ± {SD}"),
+            #P_0 = glue("{round(sum(mu>0)/4000 * 100, 1)}%"),
+            P_0 = ifelse(Mean > 0, glue("{round(sum(mu>0)/4000 * 100, 1)}%"), glue("{100-round(sum(mu>0)/4000 * 100, 1)}%")),
+            .groups = "drop")|>
+  select(-Mean, -CI, -SD)#|>
+ # pivot_wider(names_from = c(Parameter), values_from = Mean_SD)
+
+diff_df <- weights|>
+    group_by(exp, Parameter)|>
+    pivot_wider(names_from = "Task", values_from = mu)|>
+    mutate(diff = dual-single)|>
+    summarise(Mean = round(mean(diff),2),
+              CI = glue("[{round(kilter::lower_ci(diff, CI = 0.97),2)}, {round(kilter::upper_ci(diff, CI = 0.97),2)}]"),
+              P = round(mean(dual > single),3),
+              .groups = "drop")|>
+   mutate(D_s = Mean>0,
+          diff_str = glue("D-S = {Mean} {CI}"),
+          prob_str = ifelse(D_s, glue("P(D>S) = {P*100}%"), glue("P(D<S) = {100 - P * 100}%")),
+          diff = glue("{diff_str}, {prob_str}"))|>
+   select(exp, Parameter, diff)|>
+   pivot_wider(names_from = c(Parameter), values_from = diff)
+```
+
+### Absolute and Diff(D-S)
+```{r}
+knitr::kable(weights_df, caption = "Absolute values for weights")
+knitr::kable(diff_df, caption = "Difference between attention conditions for weights")
+```

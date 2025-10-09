@@ -175,6 +175,17 @@ plot_parameter_distribution(prior_relevance, "exp03", parameter_name = "Prior Re
 plot_parameter_distribution(draws, "exp03", "Maximal Response Weight", "mu_params[1]", "mu_params[2]")
 plot_parameter_distribution(draws, "exp03", "Maximal Evidence Weight", "mu_params[3]", "mu_params[4]")
 plot_parameter_distribution(draws, "exp03", "Central Tendency Weight", "mu_params[5]", "mu_params[6]")
+
+weights03 <-
+  draws |>
+  select(.draw, starts_with("mu_params")) |>
+  pivot_longer(starts_with("mu_params"), names_to = "Term", values_to = "mu") |>
+  mutate(Index = as.integer(str_extract(Term, "\\d")),
+         Task = factor((Index + 1) %% 2, labels = levels(results$Task)),
+         Parameter = factor(floor((Index - 1) / 2), labels = c("Wr", "We", "Wct", "lambda"))) |>
+  select(-Term, -Index)|>
+  filter(Parameter != "lambda")
+saveRDS(weights03, "Weights/weights03.RDS")
 ```
 
 ```{r}
@@ -191,30 +202,4 @@ sigma_df <- as.data.frame(kilter::extract_stan_posterior_matrix(draws, "sigma"))
   summarise(Sigma = mean(Sigma), .groups = "drop")
 
 plot_parameter_distribution(sigma_df, "exp03", parameter_name = "Sigma", long_df = TRUE)
-```
-
-
-## Plotting all weights together
-
-```{r}
-params03 <-
-  draws |>
-  select(.draw, starts_with("mu_params")) |>
-  pivot_longer(starts_with("mu_params"), names_to = "Term", values_to = "mu") |>
-  mutate(Index = as.integer(str_extract(Term, "\\d")),
-         Task = factor((Index + 1) %% 2, labels = levels(results$Task)),
-         Parameter = factor(floor((Index - 1) / 2), labels = c("Wr", "We", "Wct", "lambda"))) |>
-  select(-Term, -Index)
-
-
-params03 |>
-  filter(Parameter != "lambda") |>
-ggplot(aes(x = Task, y = mu, color = Task, fill = Task)) +
-  #geom_boxplot(show.legend = FALSE, outlier.shape = NA, alpha = 0.5) +
-  ggforce::geom_sina(show.legend = FALSE, alpha = 0.05) +
-  scale_fill_manual(values = c("single" = "#e6444f", "dual" = "#00457d"))+
-  scale_color_manual(values = c("single" = "#e6444f", "dual" = "#00457d"))+
-  geom_hline(yintercept = 0, linetype = "dashed") +
-  facet_wrap(. ~ Parameter) +
-  scale_y_continuous(name = "Weight", limits = c(-0.25, 1))
 ```
