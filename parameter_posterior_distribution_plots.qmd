@@ -145,7 +145,7 @@ weights |>
          Condition = factor(glue("{exp}-{Task}"))) |>
 
 ggplot(aes(x = X, y = mu)) +
-  geom_hline(yintercept = c(0, 1), linetype = "dashed") +
+  geom_hline(yintercept = c(0), linetype = "dashed") +
   geom_rect(data = att_labels, aes(y = Y, xmin = Xmin, xmax = Xmax, ymin = Ymin, ymax = Ymax), fill = "gray", color = NA) +
   geom_rect(data = att_labels, aes(y = Y, xmin = Xmin, xmax = Xmax, ymin = YminU, ymax = YmaxU), fill = "#FEFEFE", color = NA) +
   geom_richtext(data = att_labels, aes(label = Label, x = X, y = Y), label.colour = NA, fill = NA) +
