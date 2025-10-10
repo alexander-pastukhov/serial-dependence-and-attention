@@ -19,7 +19,36 @@ w03 <- readRDS("weights03.RDS") |>
   mutate(exp = "Exp.3: Orientation (low contrast)")
 weights <- bind_rows(w01,w02,w03)
 
-weights_df <-
+weights_diff_df <-
+  weights|>
+  group_by(exp, Task)|>
+  pivot_wider(names_from = "Parameter", values_from = mu)|>
+  mutate(Wr = ifelse(Wr>0, Wr, Wr*-1),
+         We = ifelse(We>0, We, We*-1),
+         Wct = ifelse(Wct>0, Wct, Wct*-1),
+         Wr_We = Wr-We,
+         Wr_Wct = Wr-Wct,
+         Wct_We = Wct-We)|>
+  summarise(M_Wr_We = round(mean(Wr_We),2),
+            M_Wr_Wct = round(mean(Wr_Wct),2),
+            M_Wct_We = round(mean(Wct_We),2),
+            CI_Wr_We = glue("[{round(kilter::lower_ci(Wr_We, CI = 0.97),2)}, {round(kilter::upper_ci(Wr_We, CI = 0.97),2)}]"),
+            CI_Wr_Wct = glue("[{round(kilter::lower_ci(Wr_Wct, CI = 0.97),2)}, {round(kilter::upper_ci(Wr_Wct, CI = 0.97),2)}]"),
+            CI_Wct_We = glue("[{round(kilter::lower_ci(Wct_We, CI = 0.97),2)}, {round(kilter::upper_ci(Wct_We, CI = 0.97),2)}]"),
+            WrWct = sum(Wr>Wct)/n(),
+            WrWe = sum(Wr>We)/n(),
+            WctWe = sum(Wct>We)/n(),
+            P = glue("{round(WrWct * WrWe * WctWe * 100, 1)}%"),
+            P_WrWct = glue("{round(WrWct * 100, 1)}%"),
+            P_WrWe = glue("{round(WrWe * 100, 1)}%"),
+            P_WctWe = glue("{round(WctWe * 100, 1)}%"),
+            .groups = "drop")|>
+   mutate("Wr-We" = glue("{M_Wr_We} {CI_Wr_We}"),
+          "Wr-Wct" = glue("{M_Wr_Wct} {CI_Wr_Wct}"),
+          "Wct-We" = glue("{M_Wct_We} {CI_Wct_We}"))|>
+  select(exp, Task, "Wr-We", P_WrWe, "Wr-Wct", P_WrWct, "Wct-We", P_WctWe, P)
+
+abs_weights_df <-
   weights|>
   group_by(exp, Parameter, Task)|>
   summarise(Mean = round(mean(mu),2),
@@ -33,7 +62,7 @@ weights_df <-
   select(-Mean, -CI, -SD)#|>
  # pivot_wider(names_from = c(Parameter), values_from = Mean_SD)
 
-diff_df <- weights|>
+attention_diff_df <- weights|>
     group_by(exp, Parameter)|>
     pivot_wider(names_from = "Task", values_from = mu)|>
     mutate(diff = dual-single)|>
@@ -51,6 +80,6 @@ diff_df <- weights|>
 
 ### Absolute and Diff(D-S)
 ```{r}
-knitr::kable(weights_df, caption = "Absolute values for weights")
-knitr::kable(diff_df, caption = "Difference between attention conditions for weights")
+knitr::kable(weights_diff_df, caption = "Difference between weights")
+knitr::kable(attention_diff_df, caption = "Difference between attention conditions for weights")
 ```
