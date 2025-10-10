@@ -129,16 +129,20 @@ att_diff <-
             Info = sprintf("%.2f<br/>%.2f,%.2f<br/>%.1f%%", mean(AttDiff), kilter::lower_ci(AttDiff), kilter::upper_ci(AttDiff), 100 * P),
             .groups = "drop") |>
   mutate(X = 3 * ( as.integer(exp) - 1) + 1.5,
-         Y = ifelse(Parameter == "We", 0.7, -0.88))
+         Y = ifelse(Parameter == "We", -0.88, -0.88))
+         # Y = ifelse(Parameter == "We", 0.7, -0.88))
 
 att_labels <-
   tibble(X = 4.5,
-         Y = c(-0.68, 0.9, -0.68),
+         Y = c(-0.68, -0.68, -0.68),
+         # Y = c(-0.68, 0.9, -0.68),
          Parameter = factor(levels(att_diff$Parameter), levels = levels(att_diff$Parameter)),
          Label = "<span style='color:#336a97ff;font-weight: bolder;'>W<sub>dual</sub></span> - <span style='color:#eb6972ff;font-weight: bolder;'>W<sub>single</sub></span>",
          Xmin = 0, Xmax = 9,
-         YminU = c(-0.75, 0.83, -0.75), YmaxU = c(-0.58, 1, -0.58),
-         Ymin = c(-1, 0.57, -1), Ymax = c(-0.58, 1, -0.58))
+         YminU = c(-0.75, -0.75, -0.75), YmaxU = c(-0.58, -0.58, -0.58),
+         Ymin = c(-1, -1, -1), Ymax = c(-0.58, -0.58, -0.58))
+         # YminU = c(-0.75, 0.83, -0.75), YmaxU = c(-0.58, 1, -0.58),
+         # Ymin = c(-1, 0.57, -1), Ymax = c(-0.58, 1, -0.58))
 
 weights |>
   mutate(X =  3 * ( as.integer(exp) - 1) + as.integer(Task),
