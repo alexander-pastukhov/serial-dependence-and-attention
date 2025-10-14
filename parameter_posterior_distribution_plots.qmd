@@ -169,3 +169,55 @@ ggsave("Figures/all-weights.png", units = "cm", width = 16, height = 12)
 ggsave("Figures/all-weights.svg", units = "cm", width = 16, height = 12)
 ```
 
+
+```{r}
+compare_based_on_rank <- function(df) {
+  param_rank <-
+    df |>
+    group_by(Parameter) |>
+    summarise(Avg = median(abs(mu)), .groups = "drop") |>
+    arrange(desc(Avg))
+  
+  df_wide <-
+    df |>
+    mutate(mu = abs(mu)) |>
+    pivot_wider(names_from = Parameter, values_from = mu) |>
+    select(-.draw) |>
+    relocate(param_rank$Parameter)
+  
+  tibble(iParam = 1:2) |>
+    group_by(iParam) |>
+    mutate(Parameter = param_rank$Parameter[iParam],
+           Info = sprintf("%s>%s\n%.2f\n%.2f\n%.2f\n%.1f%%",
+                          param_rank$Parameter[iParam], param_rank$Parameter[iParam + 1],
+                          kilter::lower_ci(df_wide[[iParam]]-df_wide[[iParam + 1]]),
+                          mean(df_wide[[iParam]]-df_wide[[iParam + 1]]),
+                          kilter::upper_ci(df_wide[[iParam]]-df_wide[[iParam + 1]]),
+                          100 * mean(df_wide[[iParam]]>df_wide[[iParam + 1]]))) |>
+    ungroup() |>
+    select(-iParam) |>
+    bind_rows(tibble(Parameter = param_rank$Parameter[3],
+                     Info = "\n[CI\nΔ\nCI]\nPr"))
+}
+
+abs_weights_comparison <-
+  weights |>
+  group_by(exp, Task) |>
+  nest() |>
+  mutate(Comparison = purrr::map(data, ~compare_based_on_rank(.))) |>
+  select(-data) |>
+  unnest(Comparison)
+```
+
+```{r}
+ggplot(weights, aes(x = Parameter, y = abs(mu))) +
+  geom_rect(xmin = 0, xmax = 4, ymin = 1, ymax = 1.4, fill = "white") +
+  geom_boxplot(outlier.shape = NA, aes(color = Task, fill = Task), alpha = 0.5, show.legend = FALSE) +
+  geom_text(data = abs_weights_comparison, aes(label = Info), y = 1.2, size = 2.5) +
+  facet_grid(Task ~ exp) +
+  scale_y_continuous(name = "Absolute weight", limits = c(0, 1.4), expand = c(0, 0)) +
+  scale_x_discrete(name = NULL, labels = c("Wr\nResponse", "We\nEvidence", "Wct\nAverage\nEvidence"))
+
+ggsave("Figures/absolute-weights.png", units = "cm", width = 16, height = 16)
+
+```
