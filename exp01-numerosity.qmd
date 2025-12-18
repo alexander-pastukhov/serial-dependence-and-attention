@@ -72,6 +72,7 @@ stan_data <- list(
   TaskN = nlevels(results$Task),
   ParticipantsN = nlevels(results$Participant),
   Numerosity_max = 100,
+  Numerosity_min = 0,
 
   Numerosity = results$Numerosity,
   Response = results$NumerosityResponse,
@@ -83,7 +84,7 @@ stan_data <- list(
 
 Compiling models
 ```{r}
-model_names <- c("log_linear", "bayesian_integration", "ubi_ur", "ubi_r", "ubi_re", "ubi_re_cte")#, "ubi_re_cte")
+model_names <- c("log_linear", "bayesian_integration", "ubi_ur", "ubi_r", "ubi_re", "rect_lu")
 models <- map(model_names, ~cmdstan_model(glue("Stan/num_{.}.stan")))
 names(models) <- model_names
 ```
@@ -95,8 +96,7 @@ for(a_model in model_names) {
   loo_name <- glue("LOO/loo-exp1-{a_model}.RDS")
   draws_with_predictions_name <- glue("DrawsWithPredictions/draws-exp1-{a_model}.RDS")
   draws_name <- glue("Draws/draws-exp1-{a_model}.RDS")
-  
-  # if (fs::file_exists(loo_name) & fs::file_exists(draws_with_predictions_name) & fs::file_exists(draws_name)) next;
+
   if (fs::file_exists(loo_name) & fs::file_exists(draws_with_predictions_name)) next;
   
   fit <- models[[a_model]]$sample(stan_data, chains = 4, parallel_chains = future::availableCores())
@@ -123,47 +123,47 @@ summarize_loo_comparison(loos)
 ## Generating summary for predictions at the group level for absolute orientation
 
 ```{r}
-draws <- readRDS("DrawsWithPredictions/draws-exp1-ubi_re_cte.RDS")
+draws <- readRDS("DrawsWithPredictions/draws-exp1-rect_lu.RDS")
 mu <- kilter::extract_stan_posterior_matrix(draws, "mu")
 ```
 
 ```{r}
 # Bootstrapping behavioral averages
-bootstrapped_abs <- bootstrap_group_averages("BootstrappedAverages/exp1-absolute-ubi_re_cte.RDS", results, Numerosity, NumerosityResponse, compute_average_absolute_response)
+bootstrapped_abs <- bootstrap_group_averages("BootstrappedAverages/exp1-absolute-rect_lu.RDS", results, Numerosity, NumerosityResponse, compute_average_absolute_response)
 
 # Posterior predictions
-posterior_abs <- posterior_group_averages_from_mu("PosteriorAverages/exp1-absolute-ubi_re_cte.RDS", results, mu, Numerosity, NumerosityResponse, compute_average_absolute_response)
+posterior_abs <- posterior_group_averages_from_mu("PosteriorAverages/exp1-absolute-rect_lu.RDS", results, mu, Numerosity, NumerosityResponse, compute_average_absolute_response)
 
-plot <- plot_model_predictions("ubi_re_cte", posterior_abs, bootstrapped_abs, Numerosity, Response) +
+plot <- plot_model_predictions("rect_lu", posterior_abs, bootstrapped_abs, Numerosity, Response) +
   geom_abline(aes(intercept = 0, slope = 1), linetype = "longdash", linewidth = 0.7)
-saveRDS(plot, file = glue("ParameterPlots/abs-posterior-prediction-exp01-ubi_re_cte.RDS"))
+saveRDS(plot, file = glue("ParameterPlots/abs-posterior-prediction-exp01-rect_lu.RDS"))
 
 plot
-ggsave("Figures/posterior-abs-exp01_ubi_re_cte.png", units = "cm", width = 16, height = 8)
-ggsave("Figures/posterior-abs-exp01_ubi_re_cte.svg", units = "cm", width = 16, height = 8)
+ggsave("Figures/posterior-abs-exp01_rect_lu.png", units = "cm", width = 16, height = 8)
+ggsave("Figures/posterior-abs-exp01_rect_lu.svg", units = "cm", width = 16, height = 8)
 ```
 
 ## Generating summary for predictions at the group level for relative orientation
 
 ```{r}
-bootstrapped_rel <- bootstrap_group_averages("BootstrappedAverages/exp1-relative-ubi_re_cte.RDS", results, Numerosity, NumerosityResponse, compute_average_relative_response)
+bootstrapped_rel <- bootstrap_group_averages("BootstrappedAverages/exp1-relative-rect_lu.RDS", results, Numerosity, NumerosityResponse, compute_average_relative_response)
 
-posterior_rel <- posterior_group_averages_from_mu("PosteriorAverages/exp1-relative-ubi_re_cte.RDS", results, mu, Numerosity, NumerosityResponse, compute_average_relative_response)
+posterior_rel <- posterior_group_averages_from_mu("PosteriorAverages/exp1-relative-rect_lu.RDS", results, mu, Numerosity, NumerosityResponse, compute_average_relative_response)
 
-plot <- plot_model_predictions("ubi_re_cte", posterior_rel, bootstrapped_rel, Rel_Stimulus, Response) +
+plot <- plot_model_predictions("rect_lu", posterior_rel, bootstrapped_rel, Rel_Stimulus, Response) +
   geom_hline(yintercept = 0, linetype = "longdash", linewidth = 0.7) +
   geom_vline(xintercept = 0, linetype = "longdash", linewidth = 0.7)
-saveRDS(plot, file = glue("ParameterPlots/rel-posterior-prediction-exp01-ubi_re_cte.RDS"))
+saveRDS(plot, file = glue("ParameterPlots/rel-posterior-prediction-exp01-rect_lu.RDS"))
 plot
-ggsave("Figures/posterior-rel-exp01_ubi_re_cte.png", units = "cm", width = 16, height = 10)
-ggsave("Figures/posterior-rel-exp01_ubi_re_cte.svg", units = "cm", width = 16, height = 10)
+ggsave("Figures/posterior-rel-exp01_rect_lu.png", units = "cm", width = 16, height = 10)
+ggsave("Figures/posterior-rel-exp01_rect_lu.svg", units = "cm", width = 16, height = 10)
 ```
 ## Plots for posterior distributions (for weights, prior evidence relevance and uncertainty)
 ```{r}
 prior_relevance <- parameter_posterior_df(draws, "mu_params[7]", "mu_params[8]", "Prior_Relevance")|>
-  mutate("Prior Relevance" = 2 * exp(Prior_Relevance)^2)|> 
-  select(.draw, Task, "Prior Relevance")
-plot_parameter_distribution(prior_relevance, "exp01", parameter_name = "Prior Relevance", long_df = TRUE)
+  mutate("log Prior Relevance" = log10(2 * exp(Prior_Relevance)^2))|> 
+  select(.draw, Task, "log Prior Relevance")
+plot_parameter_distribution(prior_relevance, "exp01", parameter_name = "log Prior Relevance", long_df = TRUE)
 
 plot_parameter_distribution(draws, "exp01", "Maximal Response Weight", "mu_params[1]", "mu_params[2]")
 plot_parameter_distribution(draws, "exp01", "Maximal Evidence Weight", "mu_params[3]", "mu_params[4]")
@@ -177,20 +177,25 @@ sigma_max <- sigma_a|>
   mutate(sigma_b = parameter_posterior_df(draws, "mu_scale_params[7]", "mu_scale_params[8]", "sigma_b")[[3]],
          "Sigma Max" = exp(Sigma_Min) + exp(sigma_b))|>
   select(.draw, Task, "Sigma Max")
+saveRDS(sigma_max, "ParameterDraws/sigma01.RDS")
 plot_parameter_distribution(sigma_max, "exp01", parameter_name = "Sigma Max", long_df = TRUE)
-
-weights01 <-
-  draws |>
-  select(.draw, starts_with("mu_params")) |>
-  pivot_longer(starts_with("mu_params"), names_to = "Term", values_to = "mu") |>
-  mutate(Index = as.integer(str_extract(Term, "\\d")),
-         Task = factor((Index + 1) %% 2, labels = levels(results$Task)),
-         Parameter = factor(floor((Index - 1) / 2), labels = c("Wr", "We", "Wct", "lambda"))) |>
-  select(-Term, -Index)|>
-  filter(Parameter != "lambda")
-saveRDS(weights01, "Weights/weights01.RDS")
 ```
+```{r}
+tasks <- results["Task"] |>
+  mutate(trial = glue("sigma[{1:nrow(results)}]"))
 
+sigma_df <- as.data.frame(kilter::extract_stan_posterior_matrix(draws, "sigma"))|>
+  mutate(.draw = 1:nrow(draws)) |>
+  pivot_longer(cols = -".draw",
+               names_to = "trial",
+               values_to = "Sigma") |>
+  left_join(tasks, by = "trial") |>
+  group_by(.draw, Task)|>
+  summarise(Sigma = mean(Sigma), .groups = "drop")
+
+plot_parameter_distribution(sigma_df, "exp01", parameter_name = "Sigma", long_df = TRUE)
+
+```
 
 ```{r}
 p_seq <- seq(0.001, 0.999, length.out = 100)
@@ -223,6 +228,18 @@ ggplot(uncertainty_avg, aes(x = P * 100, y = AvgU, color = Task)) +
   scale_fill_manual(values = c("single" = "#eb6972", "dual" = "#336a97")) +
   scale_color_manual(values = c("single" = "#eb6972", "dual" = "#336a97")) 
 
-ggsave("Figures/uncertainty.png", units = "cm", width = 12, height = 8)
-ggsave("Figures/uncertainty.svg", units = "cm", width = 12, height = 8)
+ggsave("Figures/uncertainty_exp01.png", units = "cm", width = 12, height = 8)
+ggsave("Figures/uncertainty_exp01.svg", units = "cm", width = 12, height = 8)
+```
+
+```{r}
+params01 <-
+  draws |>
+  select(.draw, starts_with("mu_params")) |>
+  pivot_longer(starts_with("mu_params"), names_to = "Term", values_to = "mu") |>
+  mutate(Index = as.integer(str_extract(Term, "\\d")),
+         Task = factor((Index + 1) %% 2, labels = levels(results$Task)),
+         Parameter = factor(floor((Index - 1) / 2), labels = c("Wr", "We", "Wct", "lambda"))) |>
+  select(-Term, -Index)
+saveRDS(params01, "ParameterDraws/params01.RDS")
 ```
