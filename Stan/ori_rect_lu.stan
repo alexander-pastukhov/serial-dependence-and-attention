@@ -25,10 +25,6 @@ transformed data {
   // 2) W_ori_max (maximal weight for prior numerosity),
   // 3) W_ct_max (maximal weight for average numerosity), 
   // 4) lambda (relevance of prior response based on how different it is)
-
-  // optimization
-  //vector[DataN] LogOri  = log(to_vector(Ori));
-  //vector[DataN] LogResponse  = log(to_vector(Response));
   
   real shift = 0.005;
   // orientation on 0..1 scale for beta distribution
@@ -37,7 +33,6 @@ transformed data {
     if (Ori01[i] == 0) {Ori01[i]= Ori01[i] + shift;}
     if (Ori01[i] == 1) {Ori01[i]= Ori01[i] - shift;}
   }
-  //Rescale to 0..1 but without 0 and 1 (e.g. 0.005, 0.995)
 }
 
 parameters {
@@ -113,15 +108,15 @@ model {
   mu_scale_params[1:2] ~ normal(0, 1);      // U_max
   mu_scale_params[3:4] ~ normal(-2.5, 2);   // sigma, so that kappa = 1/sigma;
   mu_scale_params[5:6] ~ normal(0, 0.5);    // sigma_a; 
-  mu_scale_params[7:8] ~ normal(-2.5, 2);   // sigma_b; 
+  mu_scale_params[7:8] ~ normal(-2, 1);     // sigma_b;
   l_rho_scale_params ~ lkj_corr_cholesky(2);
   sigma_scale_params ~ exponential(1);
   to_vector(z_scale_params) ~ normal(0, 1);
   
   mu_params[1:2] ~ normal(0, 0.5);  // W_response_max;  
   mu_params[3:4] ~ normal(0, 0.5);  // W_ori_max;  
-  mu_params[4:5] ~ normal(0, 0.5);  // W_ct;  
-  mu_params[7:8] ~ normal(-0.5, 2); // lambda; 
+  mu_params[5:6] ~ normal(0, 0.5);  // W_ct;  
+  mu_params[7:8] ~ normal(-0.5, 0.5); // lambda; 
   l_rho_params ~ lkj_corr_cholesky(2);
   sigma_params ~ exponential(1);
   to_vector(z_params) ~ normal(0, 1);
