@@ -1,0 +1,77 @@
+---
+title: "Parameter Posterior Distributions"
+format: html
+---
+
+## Libraries and settings required for analysis
+```{r setup}
+library(tidyverse)
+
+library(cmdstanr)
+library(fs)
+library(ggtext)
+library(glue)
+library(kilter) # devtools:install_github("alexander-pastukhov/kilter", dependencies=TRUE)
+library(loo)
+library(patchwork)
+```
+
+## import parameter distributions
+```{r}
+p01 <- readRDS("ParameterDraws/params01.RDS") |>
+  mutate(exp = "Exp1")
+p02 <- readRDS("ParameterDraws/params02.RDS") |>
+  mutate(exp = "Exp2")
+p03 <- readRDS("ParameterDraws/params03.RDS") |>
+  mutate(exp = "Exp3")
+
+params <- 
+  bind_rows(p01, p02, p03) |>
+  mutate(exp = factor(exp)) |>
+  mutate(Parameter = fct_drop(Parameter))
+```
+
+### weights: probability of data above/bellow 0
+```{r}
+weights <- 
+  params|>
+  filter(Parameter != "lambda")|>
+  group_by(Task, Parameter, exp)|>
+  summarize(P_above_0 = round(sum(mu>0)/n(),3),
+            P_below_0= round(sum(mu<0)/n(),3),
+            .groups = "drop")
+```
+
+### lambda: difference between Exp.2 and 3 per condition (mean, CI)
+```{r}
+lambda <- 
+  params|>
+  filter(Parameter == "lambda", exp != "Exp.1: Numerosity")|>
+  group_by(Task, exp)|>
+  pivot_wider(names_from = "exp", values_from = mu)|>
+  mutate(diff = Exp2-Exp3)|>
+  summarise(Mean = round(mean(diff),2),
+            CI = glue("[{round(kilter::lower_ci(diff, CI = 0.97),2)}, {round(kilter::upper_ci(diff, CI = 0.97),2)}]"),
+            P = round(mean(Exp2 > Exp3),3))
+  
+```
+
+### sigma: difference between Exp.2 and 3 per condition (mean, CI)
+```{r}
+s02 <- readRDS("ParameterDraws/sigma02.RDS") |>
+  mutate(exp = "Exp2")
+s03 <- readRDS("ParameterDraws/sigma03.RDS") |>
+  mutate(exp = "Exp3")
+
+sigma <- 
+  bind_rows(s02, s03) |>
+  mutate(exp = factor(exp)) |>
+  rename(mu = "Sigma Max")|>
+  group_by(Task, exp)|>
+  pivot_wider(names_from = "exp", values_from = mu)|>
+  mutate(diff = Exp3-Exp2)|>
+  summarise(Mean = round(mean(diff),2),
+            CI = glue("[{round(kilter::lower_ci(diff, CI = 0.97),2)}, {round(kilter::upper_ci(diff, CI = 0.97),2)}]"),
+            P = round(mean(Exp3 > Exp2),3))
+```
+
