@@ -99,7 +99,7 @@ names(models) <- model_names
 
 Sampling
 ```{r}
-for(a_model in model_names) {
+for(a_model in model_names[5]) {
   cat(a_model, "\n")
   loo_name <- glue("LOO/loo-exp2-{a_model}.RDS")
   draws_with_predictions_name <- glue("DrawsWithPredictions/draws-exp2-{a_model}.RDS")
@@ -136,17 +136,17 @@ mu <- kilter::extract_stan_posterior_matrix(draws, "mu")
 
 ```{r}
 # Bootstrapping behavioral averages
-bootstrapped_abs <- bootstrap_group_averages("BootstrappedAverages/exp2-absolute-rect_lu.RDS", results, Orientation, OriResponse, compute_average_absolute_response)
+bootstrapped_abs <- bootstrap_group_averages("BootstrappedAverages/exp2-absolute-rect_lu-order.RDS", results, Orientation, OriResponse, compute_average_absolute_response, order = TRUE)
 
 # Posterior predictions
-posterior_abs <- posterior_group_averages_from_mu("PosteriorAverages/exp2-absolute-rect_lu.RDS", results, mu, Orientation, OriResponse, compute_average_absolute_response)
+posterior_abs <- posterior_group_averages_from_mu("PosteriorAverages/exp2-absolute-rect_lu-order.RDS", results, mu, Orientation, OriResponse, compute_average_absolute_response, order = TRUE)
 
-plot <- plot_model_predictions("rect_lu", posterior_abs, bootstrapped_abs, Orientation, Response) +
+plot <- plot_model_predictions_order("rect_lu", posterior_abs, bootstrapped_abs, Orientation, Response) +
   geom_abline(aes(intercept = 0, slope = 1), linetype = "longdash", linewidth = 0.7)
-saveRDS(plot, file = glue("ParameterPlots/abs-posterior-prediction-exp02-rect_lu.RDS"))
+saveRDS(plot, file = glue("ParameterPlots/abs-posterior-prediction-exp02-rect_lu-order.RDS"))
 plot
-ggsave("Figures/posterior-abs-exp02_rect_lu.png", units = "cm", width = 16, height = 10)
-ggsave("Figures/posterior-abs-exp02_rect_lu.svg", units = "cm", width = 16, height = 10)
+ggsave("Figures/posterior-abs-exp02_rect_lu-order.png", units = "cm", width = 16, height = 10)
+ggsave("Figures/posterior-abs-exp02_rect_lu-order.svg", units = "cm", width = 16, height = 10)
 ```
 
 ## Generating summary for predictions at the group level for relative orientation
@@ -203,40 +203,6 @@ sigma_df <- as.data.frame(kilter::extract_stan_posterior_matrix(draws, "sigma"))
 plot_parameter_distribution(sigma_df, "exp02", parameter_name = "Sigma", long_df = TRUE)
 
 ```
-```{r}
-p_seq <- seq(0.001, 0.999, length.out = 100)
-
-u_params <- parameter_posterior_df(draws, "mu_scale_params[3]", "mu_scale_params[4]", "U_sigma" )|>
-  mutate(U_max = inv_logit(parameter_posterior_df(draws, "mu_scale_params[1]", "mu_scale_params[2]", "U_max" )[[3]]),
-         U_kappa = 1/exp(U_sigma))|>
-  select (.draw, Task, U_max, U_kappa)|>
-  mutate(a = U_max * U_kappa,
-         b = (1 - U_max) * U_kappa,
-         Unorm = dbeta(U_max, a, b))
-
-uncertainty <- u_params |>
-  group_by(.draw, Task) |>
-  group_modify(~tibble(P = p_seq, U = dbeta(p_seq, .x$a[1], .x$b[1]) / .x$Unorm[1]))
-  
-uncertainty_avg <- 
-  uncertainty |>
-  group_by(Task, P) |>
-  summarise(AvgU = mean(U),
-            LowerCI = lower_ci(U),
-            UpperCI = upper_ci(U),
-            .groups = "drop")
-
-ggplot(uncertainty_avg, aes(x = P * 40 + 25, y = AvgU, color = Task)) +
-  geom_ribbon(aes(ymin = LowerCI, ymax = UpperCI, fill = Task), color = NA, alpha = 0.5) +
-  geom_line() +
-  scale_x_continuous(name = "Orientation") +
-  scale_y_continuous(name = "Uncertainty")+
-  scale_fill_manual(values = c("single" = "#eb6972", "dual" = "#336a97")) +
-  scale_color_manual(values = c("single" = "#eb6972", "dual" = "#336a97")) 
-
-ggsave("Figures/uncertainty-exp02.png", units = "cm", width = 12, height = 8)
-ggsave("Figures/uncertainty-exp02.svg", units = "cm", width = 12, height = 8)
-```
 
 ```{r}
 params02 <-
@@ -248,4 +214,38 @@ params02 <-
          Parameter = factor(floor((Index - 1) / 2), labels = c("Wr", "We", "Wct", "lambda"))) |>
   select(-Term, -Index)
 saveRDS(params02, "ParameterDraws/params02.RDS")
+```
+
+## central task performance
+```{r}
+central_task <-
+  results|>
+  filter(Task == "dual")|>
+  select(Participant, ColorTaskCorrect, ColorRT, ColorIsTarget)
+  
+
+  averaging_function <- function(resample = FALSE){
+    if (resample) {central_task <- slice_sample(central_task, prop = 1, replace = TRUE)}
+    central_task|>
+    group_by(Participant) |>
+    summarise(Pcorrect = mean(ColorTaskCorrect), 
+              #p = mean(Pcorrect > 0.5),
+              avgRT = mean(ColorRT),
+              .groups = "drop")|>
+      pivot_longer(cols = c(avgRT, Pcorrect), names_to = "Parameter", values_to = "mu")
+      } 
+  
+  samples <- purrr::map(1:2000, ~averaging_function(resample = TRUE), .progress = TRUE) |> 
+    list_rbind()
+
+  avgs <-
+    samples |>
+    group_by(Participant, Parameter) |>
+    summarise(LowerCI = kilter::lower_ci(mu, CI = 0.97),
+              UpperCI = kilter::upper_ci(mu, CI = 0.97),
+              .groups = "drop") |>
+    right_join(averaging_function(), by = c("Participant", "Parameter"))
+  
+  saveRDS(avgs, "central_task/exp02.rds")
+  
 ```

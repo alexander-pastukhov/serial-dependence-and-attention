@@ -24,15 +24,23 @@ library(rlang)
 #' 
 #' # compute predictions
 #' compute_average_absolute_response(results, Orientation, OriResponse, predictions = as.numeric(posterior_mu[1, ]))
-compute_average_absolute_response <- function(df, stimulus_column, response_column, resample=FALSE, predictions=NULL){
+compute_average_absolute_response <- function(df, stimulus_column, response_column, resample=FALSE, predictions=NULL, order = FALSE){
   if (resample) df <- slice_sample(df, prop = 1, replace = TRUE)
   if (!is.null(predictions)) df <- df |> mutate({{ response_column }} := predictions)
   
+  if (!order){
   df |>
     group_by(Task, Participant, {{stimulus_column}}) |>
     summarise(Response = mean({{response_column}}), .groups = "drop") |>
     group_by(Task, {{stimulus_column}}) |>
-    summarise(Response = mean(Response), .groups = "drop")
+    summarise(Response = mean(Response), .groups = "drop")}
+  
+  if (order){
+    df |>
+      group_by(Task, Order, Participant, {{stimulus_column}}) |>
+      summarise(Response = mean({{response_column}}), .groups = "drop") |>
+      group_by(Task, Order, {{stimulus_column}}) |>
+      summarise(Response = mean(Response), .groups = "drop")}
 }
 
 
@@ -55,7 +63,7 @@ compute_average_absolute_response <- function(df, stimulus_column, response_colu
 #' 
 #' # compute relative predictions
 #' compute_average_relative_response(results, Orientation, OriResponse, predictions = as.numeric(posterior_mu[1, ]))
-compute_average_relative_response <- function(df, stimulus_column, response_column, resample=FALSE, predictions=NULL) {
+compute_average_relative_response <- function(df, stimulus_column, response_column, resample=FALSE, predictions=NULL, order = FALSE) {
   if (!is.null(predictions)) df <- df |> mutate({{ response_column }} := predictions)
   df <- 
     df |> 
@@ -66,7 +74,7 @@ compute_average_relative_response <- function(df, stimulus_column, response_colu
     
     # drop the first trial, as it has no prior orientation we can compute relative to
     filter(!IsFirstTrial)
-  compute_average_absolute_response(df, Rel_Stimulus, Rel_Response, resample = resample)
+  compute_average_absolute_response(df, Rel_Stimulus, Rel_Response, resample = resample, order = order)
 }
 
 
@@ -85,10 +93,10 @@ compute_average_relative_response <- function(df, stimulus_column, response_colu
 #'
 #' @examples
 #' bootstrap_group_averages(results, Orientation, OriResponse)
-bootstrap_group_averages <- function(filename, df, stimulus_column, response_column, averaging_function, CI=0.97, R=2000, .progress = TRUE) {
+bootstrap_group_averages <- function(filename, df, stimulus_column, response_column, averaging_function, CI=0.97, R=2000, .progress = TRUE, order = FALSE) {
   
   if (fs::file_exists(filename)) return(readRDS(filename))
-  samples <- purrr::map(1:R, ~averaging_function(df, {{stimulus_column}}, {{response_column}}, resample = TRUE), .progress = .progress) |> list_rbind()
+  samples <- purrr::map(1:R, ~averaging_function(df, {{stimulus_column}}, {{response_column}}, resample = TRUE, order = order), .progress = .progress) |> list_rbind()
   
   grouping_columns <- setdiff(colnames(samples), "Response")
 
@@ -98,7 +106,7 @@ bootstrap_group_averages <- function(filename, df, stimulus_column, response_col
     summarise(LowerCI = kilter::lower_ci(Response, CI = CI),
               UpperCI = kilter::upper_ci(Response, CI = CI),
               .groups = "drop") |>
-    right_join(averaging_function(df, {{stimulus_column}}, {{response_column}}), by = grouping_columns)
+    right_join(averaging_function(df, {{stimulus_column}}, {{response_column}}, order = order), by = grouping_columns)
   
   saveRDS(avgs, filename)
   avgs
@@ -119,10 +127,10 @@ bootstrap_group_averages <- function(filename, df, stimulus_column, response_col
 #'
 #' @examples
 #' bootstrap_group_averages(results, Orientation, OriResponse)
-posterior_group_averages_from_mu <- function(filename, df, mu, stimulus_column, response_column, averaging_function, CI=0.97, .progress = TRUE) {
+posterior_group_averages_from_mu <- function(filename, df, mu, stimulus_column, response_column, averaging_function, CI=0.97, .progress = TRUE, order = FALSE) {
   if (fs::file_exists(filename)) return(readRDS(filename))
   
-  samples <- purrr::map(1:nrow(mu), ~averaging_function(df, {{stimulus_column}}, {{response_column}}, predictions = mu[., ]), .progress = .progress) |> list_rbind()
+  samples <- purrr::map(1:nrow(mu), ~averaging_function(df, {{stimulus_column}}, {{response_column}}, predictions = mu[., ], order = order), .progress = .progress) |> list_rbind()
   
   grouping_columns <- setdiff(colnames(samples), "Response")
   
@@ -180,6 +188,28 @@ plot_model_predictions <- function(model, posterior, bootstrapped, stimulus_colu
     coord_equal()
 }
 
+#' Plotting model predictions per task
+#'
+#' @param model String with model name
+#' @param posterior Table of posterior predictions grouped by task and stimulus with average responses, LowerCI and UpperCI 
+#' @param bootstrapped Table bootstrapped behavioral averages grouped by task and stimulus with average responses, LowerCI and UpperCI 
+#'
+#' @returns ggplot: Posterior predictions per task 
+#'
+#' @examples
+#' plot_model_predictions(a_model, posterior_mu, bootstrapped_ci, Orientation, OriResponse)
+plot_model_predictions_order <- function(model, posterior, bootstrapped, stimulus_column, response_column) {
+  ggplot(data = posterior, aes(x = {{stimulus_column}}, y = {{response_column}}, ymin = LowerCI, ymax = UpperCI, fill = Order)) +
+    geom_ribbon(alpha = 0.7) +
+    geom_line(aes(color = Order)) +
+    geom_point(data = bootstrapped, aes(color = Order)) +
+    geom_pointrange(data = bootstrapped, aes(color = Order)) +
+    #scale_fill_manual(values = c("single" = "#eb6972", "dual" = "#336a97")) +
+    #scale_color_manual(values = c("single" = "#eb6972", "dual" = "#336a97")) +
+    labs(title = model) +
+    coord_equal() +
+    facet_wrap(~Task)
+}
 
 #' Extracting a parameter's posterior distribution from draws
 #'
@@ -255,7 +285,7 @@ plot_parameter_distribution <- function(draws, exp, parameter_name, parameter_si
     labs(x = parameter_name, y = "PDF", title = exp_titel[[exp,1]], subtitle = sub_title) +
     scale_fill_manual(values = c("single" = "#e6444f", "dual" = "#00457d"))
   
-  saveRDS(plot, file = glue("ParameterPlots/posterior-distribution-{exp}-{parameter_name}.RDS"))
+  saveRDS(plot, file = glue("ParameterPlots/posterior-distribution-{exp}-{parameter_name}-random.RDS"))
   plot
 }
 
