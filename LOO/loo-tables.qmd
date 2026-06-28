@@ -1,0 +1,23 @@
+---
+title: "loo table"
+format: docx
+---
+```{r}
+exp1_loo <- readRDS("loo-df-exp1.RDS")
+exp2_loo <- readRDS("loo-df-exp2.RDS")
+exp3_loo <- readRDS("loo-df-exp3.RDS")
+
+loo_df <- rbind(exp1_loo, exp2_loo, exp3_loo)
+
+weights <- readRDS("weights_df.RDS")
+weights_diff <- readRDS("weights_diff.RDS")
+```
+
+```{r}
+knitr::kable(weights, caption = "Weights")
+knitr::kable(weights_diff)
+knitr::kable(loo_df, caption = "LOO comparissons")
+knitr::kable(exp1_loo, caption = "Experiment 1: Numerosity")
+knitr::kable(exp2_loo, caption = "Experiment 2: Orientation (high contrast)")
+knitr::kable(exp3_loo, caption = "Experiment 3: Orientation (low contrast)")
+```
