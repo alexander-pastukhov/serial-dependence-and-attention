@@ -83,7 +83,7 @@ transformed parameters {
 model {
   mu_scale_params[1:2] ~ normal(logit(0.8), 1);  // scale
   mu_scale_params[3:4] ~ normal(0, 0.5);         // sigma_a
-  mu_scale_params[5:6] ~ normal(-2.5, 2);        // sigma_b
+  mu_scale_params[5:6] ~ normal(-2, 1);        // sigma_b
   l_rho_scale_params ~ lkj_corr_cholesky(2);
   sigma_scale_params ~ exponential(1);
   to_vector(z_scale_params) ~ normal(0, 1);
