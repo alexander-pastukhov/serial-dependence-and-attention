@@ -12,6 +12,7 @@ library(rlang)
 #' @param response_column Name of the response column (e.g., OriResponse or NumerosityResponse)
 #' @param resample logical, whether to sample data (not compatible with `predictions`)
 #' @param predictions predicted values to replace original responses
+#' @param order logical, defaults to `FALSE` (per oder)
 #'
 #' @returns table with columns Task, {{stimulus_column}}, and Response
 #' @examples
@@ -51,6 +52,7 @@ compute_average_absolute_response <- function(df, stimulus_column, response_colu
 #' @param response_column Name of the response column (e.g., OriResponse or NumerosityResponse)
 #' @param resample logical, whether to sample data (not compatible with `predictions`)
 #' @param predictions predicted values to replace original responses
+#' @param order logical, defaults to `FALSE` (per oder)
 #'
 #' @returns Table with relative stimulus and average response per Task and Rel_Stimulus
 #'
@@ -88,6 +90,7 @@ compute_average_relative_response <- function(df, stimulus_column, response_colu
 #' @param CI confidence interval, defaults to `0.97`
 #' @param R number of samples, defaults to `2000`
 #' @param .progress logical, defaults to `TRUE`
+#' @param order logical, defaults to `FALSE` (per oder)
 #'
 #' @returns Table with columns Task, {{stimulus_column}}, and Response, LowerCI, UpperCI
 #'
@@ -122,6 +125,7 @@ bootstrap_group_averages <- function(filename, df, stimulus_column, response_col
 #' @param response_column Name of the response column (e.g., OriResponse or NumerosityResponse)
 #' @param CI confidence interval, defaults to `0.97`
 #' @param .progress logical, defaults to `TRUE`
+#' @param order logical, defaults to `FALSE` (per oder)
 #'
 #' @returns Table with columns Task, {{stimulus_column}}, and Response, LowerCI, UpperCI
 #'
@@ -188,24 +192,22 @@ plot_model_predictions <- function(model, posterior, bootstrapped, stimulus_colu
     coord_equal()
 }
 
-#' Plotting model predictions per task
+#' Plotting model predictions per task and order
 #'
 #' @param model String with model name
 #' @param posterior Table of posterior predictions grouped by task and stimulus with average responses, LowerCI and UpperCI 
 #' @param bootstrapped Table bootstrapped behavioral averages grouped by task and stimulus with average responses, LowerCI and UpperCI 
 #'
-#' @returns ggplot: Posterior predictions per task 
+#' @returns ggplot: Posterior predictions per task and order
 #'
 #' @examples
-#' plot_model_predictions(a_model, posterior_mu, bootstrapped_ci, Orientation, OriResponse)
+#' plot_model_predictions_order(a_model, posterior_mu, bootstrapped_ci, Orientation, OriResponse)
 plot_model_predictions_order <- function(model, posterior, bootstrapped, stimulus_column, response_column) {
   ggplot(data = posterior, aes(x = {{stimulus_column}}, y = {{response_column}}, ymin = LowerCI, ymax = UpperCI, fill = Order)) +
     geom_ribbon(alpha = 0.7) +
     geom_line(aes(color = Order)) +
     geom_point(data = bootstrapped, aes(color = Order)) +
     geom_pointrange(data = bootstrapped, aes(color = Order)) +
-    #scale_fill_manual(values = c("single" = "#eb6972", "dual" = "#336a97")) +
-    #scale_color_manual(values = c("single" = "#eb6972", "dual" = "#336a97")) +
     labs(title = model) +
     coord_equal() +
     facet_wrap(~Task)
@@ -285,7 +287,7 @@ plot_parameter_distribution <- function(draws, exp, parameter_name, parameter_si
     labs(x = parameter_name, y = "PDF", title = exp_titel[[exp,1]], subtitle = sub_title) +
     scale_fill_manual(values = c("single" = "#e6444f", "dual" = "#00457d"))
   
-  saveRDS(plot, file = glue("ParameterPlots/posterior-distribution-{exp}-{parameter_name}-random.RDS"))
+  saveRDS(plot, file = glue("ParameterPlots/posterior-distribution-{exp}-{parameter_name}.RDS"))
   plot
 }
 
