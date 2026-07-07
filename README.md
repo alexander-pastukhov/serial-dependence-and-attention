@@ -11,6 +11,6 @@ Data and analysis for dual-task serial dependence
 
 
 ## Sampled draws and Figures
-Please note that analysis notebooks assume sampled draws in DrawsWithPredictions folder to recompute statistic for figures and LOO comparisions and plots in ParameterPlots folder to recreate figures. We did not include them due to their size but they can be resampled via 01_analysis... notebooks. Alternatively, please contact me and I will provide files with draws via a file-sharing service.
+Please note that analysis notebooks assume sampled draws in `DrawsWithPredictions` folder to recompute statistic for figures and LOO comparisions and plots in `ParameterPlots` folder to recreate figures. We did not include them due to their size but they can be resampled via `01_analysis_...` notebooks.
 
 
