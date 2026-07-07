@@ -17,23 +17,21 @@ library(patchwork)
 source("utils.R")
 ```
 
-## import parameter distributions
+## import central task performance for each experiment
 ```{r}
-p01 <- readRDS("central_task/exp01.RDS") |>
-  mutate(exp = "Exp1",
-         Participant = factor(Participant, labels = c(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11)))
-p02 <- readRDS("central_task/exp02.RDS") |>
-  mutate(exp = "Exp2",
-         Participant = factor(Participant, labels = c(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12)))
-p03 <- readRDS("central_task/exp03.RDS") |>
-  mutate(exp = "Exp3",
-         Participant = factor(Participant, labels = c(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12)))
+ct01 <- readRDS("central_task/exp01.RDS") |>
+  mutate(exp = "Exp1")
+ct02 <- readRDS("central_task/exp02.RDS") |>
+  mutate(exp = "Exp2")
+ct03 <- readRDS("central_task/exp03.RDS") |>
+  mutate(exp = "Exp3")
 
 ct <- 
-  bind_rows(p01, p02, p03) |>
+  bind_rows(ct01, ct02, ct03) |>
   mutate(exp = factor(exp))
 ```
 
+## plot central task performance per participant (accuracy and reaction time)
 ```{r}
 Pcorrect <- ggplot(ct|> filter (Parameter == "Pcorrect"), aes(x = Participant, y = mu)) +
   geom_point()+
@@ -44,12 +42,11 @@ Pcorrect <- ggplot(ct|> filter (Parameter == "Pcorrect"), aes(x = Participant, y
 rt <- ggplot(ct|> filter (Parameter == "avgRT"), aes(x = Participant, y = mu)) +
   geom_point()+
   geom_errorbar(aes(ymin = LowerCI, ymax = UpperCI))+
-  #geom_hline(yintercept = 0.5, linetype = "dashed")+
   facet_grid(Parameter ~ exp)
 
 Pcorrect / rt + 
     plot_layout(guides = 'collect', axis_titles = "collect")
 
 ggsave("central_task/plot_ct.png", units = "cm", width = 17, height = 12)
-#ggsave("Figures/weights.svg", units = "cm", width = 17, height = 17)
+ggsave("central_task/plot_ct.svg", units = "cm", width = 17, height = 12)
 ```
