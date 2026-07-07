@@ -29,18 +29,17 @@ compute_average_absolute_response <- function(df, stimulus_column, response_colu
   if (resample) df <- slice_sample(df, prop = 1, replace = TRUE)
   if (!is.null(predictions)) df <- df |> mutate({{ response_column }} := predictions)
   
-  if (!order){
-  df |>
-    group_by(Task, Participant, {{stimulus_column}}) |>
-    summarise(Response = mean({{response_column}}), .groups = "drop") |>
-    group_by(Task, {{stimulus_column}}) |>
-    summarise(Response = mean(Response), .groups = "drop")}
-  
   if (order){
     df |>
       group_by(Task, Order, Participant, {{stimulus_column}}) |>
       summarise(Response = mean({{response_column}}), .groups = "drop") |>
       group_by(Task, Order, {{stimulus_column}}) |>
+      summarise(Response = mean(Response), .groups = "drop")}
+  else {
+    df |>
+      group_by(Task, Participant, {{stimulus_column}}) |>
+      summarise(Response = mean({{response_column}}), .groups = "drop") |>
+      group_by(Task, {{stimulus_column}}) |>
       summarise(Response = mean(Response), .groups = "drop")}
 }
 
@@ -74,7 +73,7 @@ compute_average_relative_response <- function(df, stimulus_column, response_colu
            Rel_Response = {{ response_column }} - {{ stimulus_column }}) |>
     ungroup() |>
     
-    # drop the first trial, as it has no prior orientation we can compute relative to
+    # drop the first trial, as it has no prior orientation/numerosity we can compute relative to
     filter(!IsFirstTrial)
   compute_average_absolute_response(df, Rel_Stimulus, Rel_Response, resample = resample, order = order)
 }
@@ -95,7 +94,7 @@ compute_average_relative_response <- function(df, stimulus_column, response_colu
 #' @returns Table with columns Task, {{stimulus_column}}, and Response, LowerCI, UpperCI
 #'
 #' @examples
-#' bootstrap_group_averages(results, Orientation, OriResponse)
+#' bootstrap_group_averages("filename.RDS", results, Orientation, OriResponse, compute_average_absolute_response)
 bootstrap_group_averages <- function(filename, df, stimulus_column, response_column, averaging_function, CI=0.97, R=2000, .progress = TRUE, order = FALSE) {
   
   if (fs::file_exists(filename)) return(readRDS(filename))
@@ -130,7 +129,7 @@ bootstrap_group_averages <- function(filename, df, stimulus_column, response_col
 #' @returns Table with columns Task, {{stimulus_column}}, and Response, LowerCI, UpperCI
 #'
 #' @examples
-#' bootstrap_group_averages(results, Orientation, OriResponse)
+#' posterior_group_averages_from_mu("filename.RDS", results, Orientation, OriResponse, compute_average_absolute_response)
 posterior_group_averages_from_mu <- function(filename, df, mu, stimulus_column, response_column, averaging_function, CI=0.97, .progress = TRUE, order = FALSE) {
   if (fs::file_exists(filename)) return(readRDS(filename))
   
@@ -153,13 +152,12 @@ posterior_group_averages_from_mu <- function(filename, df, mu, stimulus_column, 
 
 #' Comparing models via leave-one-out information criterion
 #'
-#' @param model_names list of model names
 #' @param loos list of loos (for all models)
 #'
 #' @returns Table with columns model, elpd_diff, se_diff, weight (with order based on elpd_diff)
 #'
 #' @examples
-#' summarize_loo_comparison(model_names, loos)
+#' summarize_loo_comparison(loos)
 summarize_loo_comparison <- function(loos) {
   loo_table <- as_tibble(loo::loo_compare(loos), rownames = "model") |>
     dplyr::left_join(as_tibble(loo::loo_model_weights(loos), rownames = "model"), by = "model") |>
