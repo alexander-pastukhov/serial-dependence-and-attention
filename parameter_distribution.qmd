@@ -18,11 +18,11 @@ library(patchwork)
 
 ## import parameter distributions
 ```{r}
-p01 <- readRDS("ParameterDraws/params01.RDS") |>
+p01 <- readRDS("ParameterDraws/params01-random.RDS") |>
   mutate(exp = "Exp1")
-p02 <- readRDS("ParameterDraws/params02.RDS") |>
+p02 <- readRDS("ParameterDraws/params02-random.RDS") |>
   mutate(exp = "Exp2")
-p03 <- readRDS("ParameterDraws/params03.RDS") |>
+p03 <- readRDS("ParameterDraws/params03-random.RDS") |>
   mutate(exp = "Exp3")
 
 params <- 
@@ -31,7 +31,7 @@ params <-
   mutate(Parameter = fct_drop(Parameter))
 ```
 
-### weights: probability of data above/bellow 0
+weights: probability of data above/bellow 0
 ```{r}
 weights <- 
   params|>
@@ -42,7 +42,7 @@ weights <-
             .groups = "drop")
 ```
 
-### lambda: difference between Exp.2 and 3 per condition (mean, CI)
+lambda: difference between Exp.2 and 3 per condition (mean, CI)
 ```{r}
 lambda <- 
   params|>
@@ -56,7 +56,7 @@ lambda <-
   
 ```
 
-### sigma: difference between Exp.2 and 3 per condition (mean, CI)
+sigma: difference between Exp.2 and 3 per condition (mean, CI)
 ```{r}
 s02 <- readRDS("ParameterDraws/sigma02.RDS") |>
   mutate(exp = "Exp2")
